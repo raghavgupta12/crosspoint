@@ -152,5 +152,8 @@ class RRAMspec {
      3. Cannot be the same cell - Eric
   */
 
+  int parse();
+
+
 };
 

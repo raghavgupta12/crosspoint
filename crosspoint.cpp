@@ -76,7 +76,7 @@ void RRAMspec::set_values(){
   for (bank = 0; bank < numBanks; bank++){
     for (row = 0; row < numRows; row++){
       for (col = 0; col < numCols; col++){
-	memory[bank][row][col].init_values();
+        memory[bank][row][col].init_values();
       }
     }
   }
@@ -175,11 +175,22 @@ float calculate_sel_latency(policyType POLICY, int rowHit, int colHit){
    Else returns -1*/
 
 int RRAMspec::service_readwrite_request(requestType request, int bank, int row, int col,
-					int rowHit, int colHit, unsigned int data[DATA_SIZE]){
-  
-  /*if (verify_readwrite_request(request, bank, row, col) == -1){
+          int rowHit, int colHit, unsigned int data[DATA_SIZE]){
+
+  if (verify_readwrite_request(request, bank, row, col) == -1){
        return -1;
-  } */
+  } 
+
+  if (request == READ)
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+      bufferOne.data[fourbytes] = memory[bank][row][col].data[fourbytes];
+    }
+  else if (request == WRITE)
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+      memory[bank][row][col].data[fourbytes] = data[fourbytes];
+    }
+  else
+    return -1; //invalid request
                  
   float REQ_LAT = (request == READ) ? RD_LAT : WR_LAT;
   float REQ_PWR = (request == READ) ? RD_PWR : WR_PWR;  
@@ -221,6 +232,13 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
   cout << setw(8) << data[DATA_SIZE];
   cout << dec << RESET << endl << endl;
   cout << setfill(' ');
+
+  /*cout <<  " Buffer Data:";
+  cout << setfill('0');
+  for (int fourbytes = 0; fourbytes < DATA_SIZE-1; fourbytes++){
+    cout << setw(8) << bufferOne.data[fourbytes]  << "_";
+  }
+  cout << endl << hex;*/
   #endif
 
   return 0;
@@ -233,13 +251,38 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
    Else returns -1*/
 
 int RRAMspec::service_operation_request(requestType request, int bank, int rowOne, int colOne,
-					int rowTwo, int colTwo, int rowOneHit, int colOneHit,
-					int rowTwoHit, int colTwoHit){
+          int rowTwo, int colTwo, int rowOneHit, int colOneHit,
+          int rowTwoHit, int colTwoHit){
 
-  /*if (verify_operation_request(request, bank, rowOne, colOne, rowTwo, colTwo,
+  if (verify_operation_request(request, bank, rowOne, colOne, rowTwo, colTwo,
                                  rowOneHit, colOneHit, rowTwoHit, colTwoHit) == -1){
       return -1;
-  } */
+  } 
+
+  if (rowOne < rowTwo) {
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+      memory[bank][rowOne][colOne].data[fourbytes] = 
+      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
+    }
+  }
+  else if (rowTwo < rowOne) {
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+      memory[bank][rowTwo][colTwo].data[fourbytes] = 
+      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
+    }
+  }
+  else if (colTwo < colOne) {
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+      memory[bank][rowTwo][colTwo].data[fourbytes] = 
+      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
+    }
+  }
+  else {
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+      memory[bank][rowOne][colOne].data[fourbytes] = 
+      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
+    }
+  }
 
   requestTime    = calculate_sel_latency(POLICY, rowOneHit, colOneHit);
   requestTime   += calculate_sel_latency(POLICY, rowTwoHit, colTwoHit);
@@ -276,7 +319,44 @@ int RRAMspec::service_operation_request(requestType request, int bank, int rowOn
   return 0;
 }
 
+/*Function to ensure r/w request is valid. Returns 0 if successful, else returns -1*/
+int RRAMspec::verify_readwrite_request(requestType request, int bank, int row, int col){
 
+  if ((request != READ) && (request != WRITE))
+    return -1;
+  if ((bank > NUM_BANKS) || (bank < 0))
+    return -1;
+  if ((row > NUM_ROWS) || (row < 0))
+    return -1;
+  if ((col > NUM_COLS) || (col < 0))
+    return -1;
+
+  return 0;
+}
+
+/*Function to ensure lop request is valid. Returns 0 if successful, else returns -1*/
+int RRAMspec::verify_operation_request(requestType request, int bank, int rowOne, int colOne, 
+            int rowTwo, int colTwo, int rowOneHit, int colOneHit, int rowTwoHit, int colTwoHit){
+
+  if (request != LOP)
+    return -1;
+  if ((bank > NUM_BANKS) || (bank < 0))
+    return -1;
+  if ((rowOne > NUM_ROWS) || (rowOne < 0))
+    return -1;
+  if ((rowTwo > NUM_ROWS) || (rowTwo < 0))
+    return -1;
+  if ((colOne > NUM_COLS) || (colOne < 0))
+    return -1;
+  if ((colTwo > NUM_COLS) || (colTwo < 0))
+    return -1;
+  if ((rowOne != rowTwo) && (colOne != colTwo))
+    return -1;
+  if ((rowOne == rowTwo) && (colOne == colTwo))
+    return -1;
+
+  return 0;
+}
 
 
 
@@ -287,11 +367,11 @@ int main(){
   RRAM.POLICY = OPEN;
   RRAM.set_values();
 
-  requestType Req = LOP;
+  /*requestType Req = LOP;
 
   RRAM.service_operation_request(Req, 1, 0, 0, 0, 1,
-      			         1, 0,
-		                 1, 0);
+                     1, 0,
+                     1, 0);
   Req = READ;
 
   unsigned int data[DATA_SIZE];
@@ -300,7 +380,28 @@ int main(){
   }
     
   RRAM.service_readwrite_request(Req, 1, 0, 0,
-			         0, 0, data);
+               0, 0, data);*/
+
+  requestType Req = WRITE;
+
+  unsigned int data[DATA_SIZE];
+  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+    data[fourbytes] = 1;
+  }
+
+  RRAM.service_readwrite_request(Req, 1, 0, 0, 0, 0, data);
+
+  Req = READ;
+
+  RRAM.service_readwrite_request(Req, 1, 0, 0, 0, 0, data);
+  RRAM.service_readwrite_request(Req, 1, 0, 1, 0, 0, data);
+
+  Req = LOP;
+  RRAM.service_operation_request(Req, 1, 0, 0, 0, 1, 1, 0, 1, 0);
+
+  Req = READ;
+
+  RRAM.service_readwrite_request(Req, 1, 0, 1, 0, 0, data);
   
   RRAM.free_memory();
   RRAM.show_stats();
