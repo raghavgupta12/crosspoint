@@ -358,7 +358,7 @@ int RRAMspec::verify_operation_request(requestType request, int bank, int rowOne
   return 0;
 }
 
-int parse(){
+int RRAMspec::parse(){
 
   FILE * fp;
   unsigned long long bytes_read;
@@ -366,12 +366,8 @@ int parse(){
   requestType REQ;
   
   unsigned int data[DATA_SIZE];
-
-  RRAMspec RRAM;
-  RRAM.POLICY = OPEN;
-  RRAM.set_values();
   
-  fp = fopen(filename, "rb");
+  fp = fopen(FILENAME, "rb");
   
   if (fp == NULL){
     cout << RED << "TRACE NOT FOUND" << RESET << endl;
@@ -425,10 +421,10 @@ int parse(){
     }
   
     if (REQ == LOP)
-      RRAM.service_operation_request(REQ, bank, row1, col1, row2, col2, 
+      service_operation_request(REQ, bank, row1, col1, row2, col2, 
                                 row1Hit, col1Hit, row2Hit, col2Hit);
     else
-      RRAM.service_readwrite_request(REQ, bank, row1, col1, row1Hit, col1Hit, data);
+      service_readwrite_request(REQ, bank, row1, col1, row1Hit, col1Hit, data);
   }
   fclose(fp);
   return 0;

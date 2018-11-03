@@ -37,6 +37,8 @@ using namespace std;
 
 #define LOP_PWR      8
 #define LOP_LAT      8
+
+#define FILENAME     "trace.txt"
 /*************************************/
 
                                 
@@ -47,7 +49,6 @@ enum policyType    {OPEN, CLOSE};
 
 const string requestString[]       = {"READ", "WRITE", "LOP"};
 const string policyString[]        = {"OPEN", "CLOSE"};
-
 
 class stats{
  public:
