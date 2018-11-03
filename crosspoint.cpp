@@ -358,7 +358,81 @@ int RRAMspec::verify_operation_request(requestType request, int bank, int rowOne
   return 0;
 }
 
+int parse(){
 
+  FILE * fp;
+  unsigned long long bytes_read;
+  int request, bank, row1, col1, row2, col2, row1Hit, col1Hit, row2Hit, col2Hit;
+  requestType REQ;
+  
+  unsigned int data[DATA_SIZE];
+
+  RRAMspec RRAM;
+  RRAM.POLICY = OPEN;
+  RRAM.set_values();
+  
+  fp = fopen(filename, "rb");
+  
+  if (fp == NULL){
+    cout << RED << "TRACE NOT FOUND" << RESET << endl;
+    return -1;
+  }
+  
+  while (fread((&bytes_read), sizeof(unsigned long long), 1, fp) != 0){
+
+    col1Hit    = bytes_read & 1;
+    bytes_read = bytes_read >> 1;
+
+    row1Hit    = bytes_read & 1;
+    bytes_read = bytes_read >> 1;
+
+    col2Hit    = bytes_read & 1;
+    bytes_read = bytes_read >> 1;
+
+    row2Hit    = bytes_read & 1;
+    bytes_read = bytes_read >> 1;
+
+    col1       = bytes_read & 0x3FF;
+    bytes_read = bytes_read >> 10;
+
+    row1       = bytes_read & 0x7FFF;
+    bytes_read = bytes_read >> 15;
+
+    col2       = bytes_read & 0x3FF;
+    bytes_read = bytes_read >> 10;
+
+    row2       = bytes_read & 0x7FFF;
+    bytes_read = bytes_read >> 15;
+
+    bank       = bytes_read & 0x7;
+    bytes_read = bytes_read >> 3;
+
+    request    = bytes_read & 0x7;
+    bytes_read = bytes_read >> 3;
+
+    if (request == 0)
+      REQ = READ;
+    else if (request == 1)
+      REQ = WRITE;
+    else
+      REQ = LOP;
+
+    if (REQ == WRITE) /* Also get the data to be written */
+      fread(&data[0], sizeof(unsigned int), DATA_SIZE, fp);
+
+    for(int iter = 0; iter < 16; iter++){
+      data[iter] = 0x00000000;
+    }
+  
+    if (REQ == LOP)
+      RRAM.service_operation_request(REQ, bank, row1, col1, row2, col2, 
+                                row1Hit, col1Hit, row2Hit, col2Hit);
+    else
+      RRAM.service_readwrite_request(REQ, bank, row1, col1, row1Hit, col1Hit, data);
+  }
+  fclose(fp);
+  return 0;
+}
 
 int main(){
 
