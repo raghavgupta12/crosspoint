@@ -8,6 +8,9 @@ LFLAGS = -Wall $(DEBUG)
 make: $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS) -o crosspoint
 
+trace: make_sample_trace.cpp
+	$(CC) $(LFLAGS) make_sample_trace.cpp -o trace
+
 clean:
-	rm -rf crosspoint *~ 
+	rm -rf crosspoint trace trace.bin *~ 
 

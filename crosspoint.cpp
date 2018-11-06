@@ -1,3 +1,4 @@
+
 #include "crosspoint.h"
 
 /*Initialising stats */
@@ -97,6 +98,7 @@ void RRAMspec::set_values(){
 
 
 
+
 /* Free RRAM emory */
 void RRAMspec::free_memory(void){
 
@@ -181,17 +183,21 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
        return -1;
   } 
 
-  if (request == READ)
+  
+  if (request == READ){
     for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-      bufferOne.data[fourbytes] = memory[bank][row][col].data[fourbytes];
+      data[fourbytes] = memory[bank][row][col].data[fourbytes];
     }
-  else if (request == WRITE)
+  }
+  else if (request == WRITE){
     for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
       memory[bank][row][col].data[fourbytes] = data[fourbytes];
     }
+  }
   else
     return -1; //invalid request
-                 
+
+  
   float REQ_LAT = (request == READ) ? RD_LAT : WR_LAT;
   float REQ_PWR = (request == READ) ? RD_PWR : WR_PWR;  
   
@@ -221,8 +227,8 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
   cout << " Col-1: "     << setw(4)  << col;
   cout << "                          ";
   cout << " Time: "      << setw(6)  << requestTime;
-  cout << " POWER: "     << setw(6)  << requestPower;
-  cout << " ENERGY: "    << setw(6)  << requestEnergy;
+  cout << " POWER: "     << setw(7)  << requestPower;
+  cout << " ENERGY: "    << setw(7)  << requestEnergy;
   cout << endl << hex;
   cout <<  " DATA:";
   cout << setfill('0');
@@ -233,14 +239,7 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
   cout << dec << RESET << endl << endl;
   cout << setfill(' ');
 
-  /*cout <<  " Buffer Data:";
-  cout << setfill('0');
-  for (int fourbytes = 0; fourbytes < DATA_SIZE-1; fourbytes++){
-    cout << setw(8) << bufferOne.data[fourbytes]  << "_";
-  }
-  cout << endl << hex;*/
   #endif
-
   return 0;
 }
 
@@ -254,36 +253,16 @@ int RRAMspec::service_operation_request(requestType request, int bank, int rowOn
           int rowTwo, int colTwo, int rowOneHit, int colOneHit,
           int rowTwoHit, int colTwoHit){
 
-  if (verify_operation_request(request, bank, rowOne, colOne, rowTwo, colTwo,
-                                 rowOneHit, colOneHit, rowTwoHit, colTwoHit) == -1){
+  if (verify_operation_request(request,   bank,      rowOne,    colOne, rowTwo, colTwo,
+                               rowOneHit, colOneHit, rowTwoHit, colTwoHit) == -1){
       return -1;
   } 
 
-  if (rowOne < rowTwo) {
-    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
       memory[bank][rowOne][colOne].data[fourbytes] = 
       memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
-    }
   }
-  else if (rowTwo < rowOne) {
-    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-      memory[bank][rowTwo][colTwo].data[fourbytes] = 
-      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
-    }
-  }
-  else if (colTwo < colOne) {
-    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-      memory[bank][rowTwo][colTwo].data[fourbytes] = 
-      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
-    }
-  }
-  else {
-    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-      memory[bank][rowOne][colOne].data[fourbytes] = 
-      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
-    }
-  }
-
+ 
   requestTime    = calculate_sel_latency(POLICY, rowOneHit, colOneHit);
   requestTime   += calculate_sel_latency(POLICY, rowTwoHit, colTwoHit);
   requestTime   += LOP_LAT;
@@ -311,13 +290,16 @@ int RRAMspec::service_operation_request(requestType request, int bank, int rowOn
   cout << " Row-2: "      << setw(6)  << rowTwo;
   cout << " Col-2: "      << setw(4)  << colTwo;
   cout << " Time: "    << setw(6)  << requestTime;
-  cout << " POWER: "   << setw(6)  << requestPower;
-  cout << " ENERGY :"  << setw(6)  << requestEnergy;
-  cout << endl;
+  cout << " POWER: "   << setw(7)  << requestPower;
+  cout << " ENERGY :"  << setw(7)  << requestEnergy;
+  cout << endl << endl << RESET;
   #endif
 
   return 0;
 }
+
+
+
 
 /*Function to ensure r/w request is valid. Returns 0 if successful, else returns -1*/
 int RRAMspec::verify_readwrite_request(requestType request, int bank, int row, int col){
@@ -357,6 +339,9 @@ int RRAMspec::verify_operation_request(requestType request, int bank, int rowOne
 
   return 0;
 }
+
+
+
 
 int RRAMspec::parse(){
 
@@ -413,22 +398,31 @@ int RRAMspec::parse(){
     else
       REQ = LOP;
 
-    if (REQ == WRITE) /* Also get the data to be written */
+    
+    if (REQ == WRITE) /* Also get the data to be written */{
       fread(&data[0], sizeof(unsigned int), DATA_SIZE, fp);
-
-    for(int iter = 0; iter < 16; iter++){
-      data[iter] = 0x00000000;
     }
-  
-    if (REQ == LOP)
+    else{
+      for(int iter = 0; iter < DATA_SIZE; iter++){
+	data[iter] = 0x00000000;
+      }
+    }
+    
+    if (REQ == LOP){
       service_operation_request(REQ, bank, row1, col1, row2, col2, 
                                 row1Hit, col1Hit, row2Hit, col2Hit);
-    else
+    }
+    else {
       service_readwrite_request(REQ, bank, row1, col1, row1Hit, col1Hit, data);
+    }
   }
+
   fclose(fp);
   return 0;
 }
+
+
+
 
 int main(){
 
@@ -437,41 +431,7 @@ int main(){
   RRAM.POLICY = OPEN;
   RRAM.set_values();
 
-  /*requestType Req = LOP;
-
-  RRAM.service_operation_request(Req, 1, 0, 0, 0, 1,
-                     1, 0,
-                     1, 0);
-  Req = READ;
-
-  unsigned int data[DATA_SIZE];
-  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-    data[fourbytes] = 0;
-  }
-    
-  RRAM.service_readwrite_request(Req, 1, 0, 0,
-               0, 0, data);*/
-
-  requestType Req = WRITE;
-
-  unsigned int data[DATA_SIZE];
-  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-    data[fourbytes] = 1;
-  }
-
-  RRAM.service_readwrite_request(Req, 1, 0, 0, 0, 0, data);
-
-  Req = READ;
-
-  RRAM.service_readwrite_request(Req, 1, 0, 0, 0, 0, data);
-  RRAM.service_readwrite_request(Req, 1, 0, 1, 0, 0, data);
-
-  Req = LOP;
-  RRAM.service_operation_request(Req, 1, 0, 0, 0, 1, 1, 0, 1, 0);
-
-  Req = READ;
-
-  RRAM.service_readwrite_request(Req, 1, 0, 1, 0, 0, data);
+  RRAM.parse();
   
   RRAM.free_memory();
   RRAM.show_stats();

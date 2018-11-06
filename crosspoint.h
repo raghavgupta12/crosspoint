@@ -22,9 +22,9 @@ using namespace std;
 
 #define DATA_SIZE    16
 
-#define NUM_BANKS    8
-#define NUM_ROWS     8
-#define NUM_COLS     8
+#define NUM_BANKS    1
+#define NUM_ROWS     4
+#define NUM_COLS     4
 
 #define SEL_PWR      5
 #define SEL_LAT      5
@@ -38,7 +38,7 @@ using namespace std;
 #define LOP_PWR      8
 #define LOP_LAT      8
 
-#define FILENAME     "trace.txt"
+#define FILENAME     "trace.bin"
 /*************************************/
 
                                 
