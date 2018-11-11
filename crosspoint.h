@@ -23,33 +23,34 @@ using namespace std;
 #define DATA_SIZE    16
 
 #define NUM_BANKS    1
-#define NUM_ROWS     4
-#define NUM_COLS     4
+#define NUM_ROWS     2
+#define NUM_COLS     2
 
-#define SEL_PWR      5
-#define SEL_LAT      5
+#define RD_PWR       1
+#define RD_LAT       5
 
-#define RD_PWR       6
-#define RD_LAT       6
+#define WR_PWR       3
+#define WR_LAT       5
 
-#define WR_PWR       7
-#define WR_LAT       7
+#define NOT_PWR      2
+#define NOT_LAT      5
 
-#define LOP_PWR      8
-#define LOP_LAT      8
+#define OR_PWR       4
+#define OR_LAT       5
+
+#define HALF_SEL_PWR   0.2
+#define WR_SET_BIT_PWR 0.001
 
 #define FILENAME     "trace.bin"
 /*************************************/
+          
 
-                                
+enum requestType   {READ, WRITE, NOT, OR};
 
-enum requestType   {READ, WRITE, LOP};
-enum policyType    {OPEN, CLOSE};
+const string requestString[] = {"READ", "WRITE", "NOT", "OR"};
 
 
-const string requestString[]       = {"READ", "WRITE", "LOP"};
-const string policyString[]        = {"OPEN", "CLOSE"};
-
+		    
 class stats{
  public:
 
@@ -67,6 +68,7 @@ class stats{
 }; 
 
 
+		    
 class bufferData{
  public:
   unsigned int data[DATA_SIZE];
@@ -74,6 +76,7 @@ class bufferData{
 };
 
 
+		    
 class RRAMdata{
  public:
   unsigned int data[DATA_SIZE];
@@ -84,19 +87,12 @@ class RRAMdata{
 
 class RRAMspec {
 
- public:
-  policyType POLICY; //Options are OPEN and CLOSE
   
  protected:
   int   numBanks, numRows, numCols;
 
-  float requestTime, requestPower, requestEnergy;
-  
+  float requestTime, requestPower, requestEnergy;  
   stats requestStats;
-  
-  /* Buffer */
-  bufferData bufferOne;  
-  bufferData bufferTwo;
 
   /* Memory */
   RRAMdata *** memory;
@@ -106,55 +102,28 @@ class RRAMspec {
   void set_values                  (void);
   void free_memory                 (void);
   
-  int service_readwrite_request    (requestType, int,  int, int, int,    int,    unsigned int write_data[DATA_SIZE]);
-  /*                                requestType, bank, row, col, rowHit, colHit, data */
+  int service_readwrite_request (requestType, int,  int, int, unsigned int write_data[DATA_SIZE]);
+  /*                             requestType, bank, row, col, data */
+  
+  int service_or_request        (requestType, int,  int,    int,    int,    int );
+  /*                             requestType, bank, rowOne, colOne, rowTwo, colTwo */  
 
-  /* 
-   READ REQUEST (ROW, COL):
-   
-   1. Data in memory goes to bufferOne - Eric
-   2. Stats - Case on rowHit and colHit and accordingly consider power, energy, latency - Raghav
-  
-   WRITE REQUEST (ROW, COL)
-  
-   1. Data in write_data goes to memory - Eric
-   2. Same as read - Raghav
-  */
-  
-  
-  int service_operation_request    (requestType, int,  int,    int,    int,    int,    int,       int,       int,       int);
-  /*                                requestType, bank, rowOne, colOne, rowTwo, colTwo, rowOneHit, colOneHit, rowTwoHit, colTwoHit */  
-
-  /* 
-     OPERATION (ROW1, COL1, ROW2, COL2)
-
-     1. Assume OPERATION is AND. Resultant goes to lower cell - Eric
-     2. Stats - Case on rowHit and colHit and accordingly consider power, energy, latency - Raghav
-  */ 
+  int service_not_request       (requestType, int,  int, int);
+  /*                             requestType, bank, row, col */
 
   
-  void show_stats                  (void);
+  void show_stats               (void);
   
-  int verify_readwrite_request     (requestType, int,  int, int);
-  /*                                requestType, bank, row, col*/
+  int verify_readwrite_request  (requestType, int,  int, int);
+  /*                             requestType, bank, row, col*/
 
-  /* 
-     VERIFY
-     1. Make sure bank, row, col is within bounds i.e >=0 <=TOTAL - Eric
-  */
+  int verify_or_request         (requestType, int,  int,    int,    int,    int);
+  /*                             requestType, bank, rowOne, colOne, rowTwo, colTwo */
 
-  int verify_operation_request     (requestType, int,  int,    int,    int,    int,    int,       int,       int,       int);
-  /*                                requestType, bank, rowOne, colOne, rowTwo, colTwo, rowOneHit, colOneHit, rowTwoHit, colTwoHit */
-
-  /* 
-     VERIFY
-     1. Make sure bank, row, col is within bounds i.e >=0 <= TOTAL - Eric
-     2. Either rowOne = rowTwo or colOne = colTwo - Eric
-     3. Cannot be the same cell - Eric
-  */
+  int verify_not_request        (requestType, int,  int, int);
+  /*                             requestType, bank, row, col */
 
   int parse();
-
 
 };
 

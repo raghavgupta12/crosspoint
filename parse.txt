@@ -2,7 +2,7 @@
 
 4 bits 0
 
-3 bits REQ, REQ = 0 -> READ, REQ = 1 -> WRITE, REQ = 2 -> LOP
+3 bits REQ, REQ = 0 -> READ, REQ = 1 -> WRITE, REQ = 2 -> NOT, REQ = 3 -> OR
 3 bits bank
 
 15 bits row2
@@ -10,7 +10,4 @@
 15 bits row1
 10 bits col1
 
-1 bit row2Hit
-1 bit col2Hit
-1 bit row1Hit
-1 bit col1Hit
+4 bits 0

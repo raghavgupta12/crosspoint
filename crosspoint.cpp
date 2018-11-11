@@ -1,5 +1,5 @@
 
-#include "crosspoint.h"
+#include "helper.h"
 
 /*Initialising stats */
 void stats::init_values(){
@@ -82,17 +82,12 @@ void RRAMspec::set_values(){
     }
   }
   
-  /* Init buffers */
-  bufferOne.init_values();
-  bufferTwo.init_values();
-
   requestStats.init_values();
   
   cout << RED << endl << "SETTING UP RRAM VALUES " << BLUE << endl;
   cout << "No. of Banks:         " << numBanks    << endl;
   cout << "No. of Rows:          " << numRows     << endl;
   cout << "No. of Cols:          " << numCols     << endl;
-  cout << "Policy:               " << policyString[POLICY] << endl;
   cout << RESET << endl;
 }
 
@@ -117,67 +112,33 @@ void RRAMspec::free_memory(void){
 
 
 
-/* Function to calculate selection energy given whether row hit, col hit. */
-float calculate_sel_energy(policyType POLICY, int rowHit, int colHit){
+float calculate_request_energy(requestType request, float requestTime, int sameRowLOP){
 
-  float sel_energy  = 0;
-
-  if (POLICY == OPEN){
-
-    if ((rowHit == 1) && (colHit == 1)){
-      sel_energy  = 0;
-    }
-    else if ((rowHit == 1) || (colHit == 1)){
-      sel_energy  = SEL_LAT * SEL_PWR;
-    }
-    else {
-      sel_energy  = SEL_LAT * SEL_PWR * 2;
-    }
+  float requestEnergy = 0;
+  
+  if (request == READ){
+    requestEnergy  = (RD_PWR * requestTime)  + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
+  }
+  else if (request == WRITE){
+    requestEnergy  = (WR_PWR * requestTime)  + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
+  }
+  else if (request == NOT){
+    requestEnergy  = (NOT_PWR * requestTime) + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
+  }
+  else { //OR
+    requestEnergy  = (OR_PWR * requestTime)  + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
+    requestEnergy += (sameRowLOP) ? (HALF_SEL_PWR * requestTime * (NUM_COLS-1)) : (HALF_SEL_PWR * requestTime * (NUM_ROWS-1));
   }
 
-  else { /* POLICY = CLOSE */
-    sel_energy = SEL_LAT * SEL_PWR * 2;
-  }
-
-  return sel_energy;
+  return requestEnergy;
 }
-
-
-
-
-/* Function to calculate selection latency given whether row hit, col hit. */
-float calculate_sel_latency(policyType POLICY, int rowHit, int colHit){
-
-  float sel_latency  = 0;
-
-  if (POLICY == OPEN){
-
-    if ((rowHit == 1) && (colHit == 1)){
-      sel_latency  = 0;
-    }
-    else if ((rowHit == 1) || (colHit == 1)){
-      sel_latency  = SEL_LAT;
-    }
-    else {
-      sel_latency  = SEL_LAT;
-    }
-  }
-
-  else { /* POLICY = CLOSE */
-    sel_latency = SEL_LAT;
-  }
-
-  return sel_latency;
-}
-
 
 
 
 /* Function to find and add energy, latency consumed by a read/write request. Returns 0 if sucessful.
    Else returns -1*/
 
-int RRAMspec::service_readwrite_request(requestType request, int bank, int row, int col,
-          int rowHit, int colHit, unsigned int data[DATA_SIZE]){
+int RRAMspec::service_readwrite_request(requestType request, int bank, int row, int col, unsigned int data[DATA_SIZE]){
 
   if (verify_readwrite_request(request, bank, row, col) == -1){
        return -1;
@@ -197,18 +158,15 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
   else
     return -1; //invalid request
 
-  
-  float REQ_LAT = (request == READ) ? RD_LAT : WR_LAT;
-  float REQ_PWR = (request == READ) ? RD_PWR : WR_PWR;  
-  
-  requestTime    = calculate_sel_latency(POLICY, rowHit, colHit);
-  requestTime   += REQ_LAT;
-
-  requestEnergy  = calculate_sel_energy(POLICY, rowHit, colHit);
-  requestEnergy += (REQ_LAT * REQ_PWR);
     
-  requestPower = requestEnergy/requestTime;
+  requestTime   = (request == READ) ? RD_LAT : WR_LAT;
+  requestEnergy = calculate_request_energy(request, requestTime, 0);
 
+  if (request == WRITE){
+    requestEnergy += requestTime * WR_SET_BIT_PWR * noSetBits(data);
+  }
+  
+  requestPower = requestEnergy/requestTime;
   requestStats.update_stats(requestEnergy, requestPower, requestTime);
   
   /* Print Request Details */
@@ -219,9 +177,6 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
     cout << GREEN;
   
   cout << "Request: "     << setw(5)  << requestString[request];
-  cout << "  Row-1-Hit: " << setw(2)  << rowHit;
-  cout << " Col-1-Hit: "  << setw(2)  << colHit;
-  cout << "                             ";
   cout << " Bank: "      << setw(4)  << bank;
   cout << " Row-1: "     << setw(6)  << row;
   cout << " Col-1: "     << setw(4)  << col;
@@ -235,7 +190,7 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
   for (int fourbytes = 0; fourbytes < DATA_SIZE-1; fourbytes++){
     cout << setw(8) << data[fourbytes]  << "_";
   }
-  cout << setw(8) << data[DATA_SIZE];
+  cout << setw(8) << data[DATA_SIZE-1];
   cout << dec << RESET << endl << endl;
   cout << setfill(' ');
 
@@ -246,49 +201,34 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
 
 
 
-/* Function to find and add energy, latency consumed by a logical operation request. Returns 0 if sucessful.
+/* Function to find and add energy, latency consumed by a bitwise NOT request. Returns 0 if sucessful.
    Else returns -1*/
 
-int RRAMspec::service_operation_request(requestType request, int bank, int rowOne, int colOne,
-          int rowTwo, int colTwo, int rowOneHit, int colOneHit,
-          int rowTwoHit, int colTwoHit){
+int RRAMspec::service_not_request(requestType request, int bank, int row, int col){
 
-  if (verify_operation_request(request,   bank,      rowOne,    colOne, rowTwo, colTwo,
-                               rowOneHit, colOneHit, rowTwoHit, colTwoHit) == -1){
+  if (verify_not_request(request, bank, row, col) == -1){
       return -1;
-  } 
-
+  }
+  
   for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-      memory[bank][rowOne][colOne].data[fourbytes] = 
-      memory[bank][rowOne][colOne].data[fourbytes] & memory[bank][rowTwo][colTwo].data[fourbytes];
+      memory[bank][row][col].data[fourbytes] = ~memory[bank][row][col].data[fourbytes];
   }
  
-  requestTime    = calculate_sel_latency(POLICY, rowOneHit, colOneHit);
-  requestTime   += calculate_sel_latency(POLICY, rowTwoHit, colTwoHit);
-  requestTime   += LOP_LAT;
-
-  requestEnergy  = calculate_sel_energy(POLICY, rowOneHit, colOneHit);
-  requestEnergy += calculate_sel_energy(POLICY, rowTwoHit, colTwoHit);
-  requestEnergy += (LOP_LAT * LOP_PWR);
+  requestTime   = NOT_LAT;
+  requestEnergy = calculate_request_energy(request, requestTime, 0);
 
   requestPower = requestEnergy/requestTime;
-
   requestStats.update_stats(requestEnergy, requestPower, requestTime);
   
   /* Print Request Details */
   #ifdef DEBUG
-  cout << DARKBLUE;
+  cout << MAGENTA;
 
   cout << "Request: "    << setw(5)  << requestString[request];
-  cout << "  Row-1-Hit: " << setw(2)  << rowOneHit;
-  cout << " Col-1-Hit: "  << setw(2)  << colOneHit;
-  cout << " Row-2-Hit: "  << setw(2)  << rowTwoHit;
-  cout << " Col-2-Hit: "  << setw(2)  << colTwoHit;
-  cout << "  Bank: "      << setw(4)  << bank;
-  cout << " Row-1: "      << setw(6)  << rowOne;
-  cout << " Col-1: "      << setw(4)  << colOne;
-  cout << " Row-2: "      << setw(6)  << rowTwo;
-  cout << " Col-2: "      << setw(4)  << colTwo;
+  cout << " Bank: "     << setw(4)  << bank;
+  cout << " Row-1: "    << setw(6)  << row;
+  cout << " Col-1: "    << setw(4)  << col;
+  cout << "                          ";
   cout << " Time: "    << setw(6)  << requestTime;
   cout << " POWER: "   << setw(7)  << requestPower;
   cout << " ENERGY :"  << setw(7)  << requestEnergy;
@@ -298,6 +238,46 @@ int RRAMspec::service_operation_request(requestType request, int bank, int rowOn
   return 0;
 }
 
+
+
+/* Function to find and add energy, latency consumed by a bitwise OR request. Returns 0 if sucessful.                                                                                                     
+   Else returns -1*/
+
+int RRAMspec::service_or_request(requestType request, int bank, int rowOne, int colOne, int rowTwo, int colTwo){
+
+  if (verify_or_request(request, bank, rowOne, colOne, rowTwo, colTwo) == -1){
+    return -1;
+  }
+
+  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+    memory[bank][rowOne][colOne].data[fourbytes] =
+    memory[bank][rowOne][colOne].data[fourbytes] | memory[bank][rowTwo][colTwo].data[fourbytes];
+  }
+
+  requestTime   = OR_LAT;
+  requestEnergy = calculate_request_energy(request, requestTime, (rowOne == rowTwo));
+
+  requestPower = requestEnergy/requestTime;
+  requestStats.update_stats(requestEnergy, requestPower, requestTime);
+
+  /* Print Request Details */
+    #ifdef DEBUG
+  cout << RED;
+
+  cout << "Request: "    << setw(5)  << requestString[request];
+  cout << " Bank: "      << setw(4)  << bank;
+  cout << " Row-1: "     << setw(6)  << rowOne;
+  cout << " Col-1: "     << setw(4)  << colOne;
+  cout << " Row-2: "     << setw(6)  << rowTwo;
+  cout << " Col-2: "     << setw(4)  << colTwo;
+  cout << " Time: "    << setw(6)  << requestTime;
+  cout << " POWER: "   << setw(7)  << requestPower;
+  cout << " ENERGY :"  << setw(7)  << requestEnergy;
+  cout << endl << endl << RESET;
+    #endif
+
+  return 0;
+}
 
 
 
@@ -316,19 +296,38 @@ int RRAMspec::verify_readwrite_request(requestType request, int bank, int row, i
   return 0;
 }
 
-/*Function to ensure lop request is valid. Returns 0 if successful, else returns -1*/
-int RRAMspec::verify_operation_request(requestType request, int bank, int rowOne, int colOne, 
-            int rowTwo, int colTwo, int rowOneHit, int colOneHit, int rowTwoHit, int colTwoHit){
 
-  if (request != LOP)
+
+/*Function to ensure NOT request is valid. Returns 0 if successful, else returns -1*/
+int RRAMspec::verify_not_request(requestType request, int bank, int row, int col){
+
+  if (request != NOT)
+    return -1;
+  if ((bank > NUM_BANKS) || (bank < 0))
+    return -1;
+  if ((row > NUM_ROWS) || (row < 0))
+    return -1;
+  if ((col > NUM_COLS) || (col < 0))
+    return -1;
+
+  return 0;
+}
+
+
+
+/*Function to ensure OR request is valid. Returns 0 if successful, else returns -1*/
+int RRAMspec::verify_or_request(requestType request, int bank, int rowOne, int colOne,
+				 int rowTwo, int colTwo){
+
+  if (request != OR)
     return -1;
   if ((bank > NUM_BANKS) || (bank < 0))
     return -1;
   if ((rowOne > NUM_ROWS) || (rowOne < 0))
     return -1;
-  if ((rowTwo > NUM_ROWS) || (rowTwo < 0))
-    return -1;
   if ((colOne > NUM_COLS) || (colOne < 0))
+    return -1;
+  if ((rowTwo > NUM_ROWS) || (rowTwo < 0))
     return -1;
   if ((colTwo > NUM_COLS) || (colTwo < 0))
     return -1;
@@ -342,12 +341,11 @@ int RRAMspec::verify_operation_request(requestType request, int bank, int rowOne
 
 
 
-
 int RRAMspec::parse(){
 
   FILE * fp;
   unsigned long long bytes_read;
-  int request, bank, row1, col1, row2, col2, row1Hit, col1Hit, row2Hit, col2Hit;
+  int  request, bank, row1, col1, row2, col2;
   requestType REQ;
   
   unsigned int data[DATA_SIZE];
@@ -361,17 +359,7 @@ int RRAMspec::parse(){
   
   while (fread((&bytes_read), sizeof(unsigned long long), 1, fp) != 0){
 
-    col1Hit    = bytes_read & 1;
-    bytes_read = bytes_read >> 1;
-
-    row1Hit    = bytes_read & 1;
-    bytes_read = bytes_read >> 1;
-
-    col2Hit    = bytes_read & 1;
-    bytes_read = bytes_read >> 1;
-
-    row2Hit    = bytes_read & 1;
-    bytes_read = bytes_read >> 1;
+    bytes_read = bytes_read >> 4;
 
     col1       = bytes_read & 0x3FF;
     bytes_read = bytes_read >> 10;
@@ -391,12 +379,15 @@ int RRAMspec::parse(){
     request    = bytes_read & 0x7;
     bytes_read = bytes_read >> 3;
 
+    
     if (request == 0)
       REQ = READ;
     else if (request == 1)
       REQ = WRITE;
+    else if (request == 2)
+      REQ = NOT;
     else
-      REQ = LOP;
+      REQ = OR;
 
     
     if (REQ == WRITE) /* Also get the data to be written */{
@@ -408,15 +399,17 @@ int RRAMspec::parse(){
       }
     }
     
-    if (REQ == LOP){
-      service_operation_request(REQ, bank, row1, col1, row2, col2, 
-                                row1Hit, col1Hit, row2Hit, col2Hit);
+    if (REQ == NOT){
+      service_not_request(REQ, bank, row1, col1);
+    }
+    else if (REQ == OR){
+      service_or_request(REQ, bank, row1, col1, row2, col2);
     }
     else {
-      service_readwrite_request(REQ, bank, row1, col1, row1Hit, col1Hit, data);
+      service_readwrite_request(REQ, bank, row1, col1, data);
     }
   }
-
+  
   fclose(fp);
   return 0;
 }
@@ -428,7 +421,6 @@ int main(){
 
   RRAMspec RRAM;
 
-  RRAM.POLICY = OPEN;
   RRAM.set_values();
 
   RRAM.parse();

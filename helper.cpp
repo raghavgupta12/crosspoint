@@ -1,5 +1,4 @@
-#include "crosspoint.h"
-
+#include "helper.h"
 
 
 void stats::print_stats(void){
@@ -14,6 +13,19 @@ void stats::print_stats(void){
 }
 
 
+unsigned int noSetBits(unsigned int data[DATA_SIZE]){
+
+  unsigned int count = 0;
+
+  for (int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+
+    count += __builtin_popcount(data[fourbytes]);
+  }
+
+  return count;
+}
+
+
 void RRAMspec::show_stats(void){
 
   /* All Energy Statistics will be printed */
@@ -23,3 +35,4 @@ void RRAMspec::show_stats(void){
   
 }
                  
+

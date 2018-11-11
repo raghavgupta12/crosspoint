@@ -1,4 +1,4 @@
-OBJS = crosspoint.cpp helper.cpp crosspoint.h 
+OBJS = crosspoint.cpp helper.cpp crosspoint.h helper.h
 CC = g++
 DEBUG = -g
 CFLAGS = -Wall -c $(DEBUG)
