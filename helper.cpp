@@ -18,10 +18,8 @@ unsigned int noSetBits(unsigned int data[DATA_SIZE]){
   unsigned int count = 0;
 
   for (int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-
     count += __builtin_popcount(data[fourbytes]);
   }
-
   return count;
 }
 

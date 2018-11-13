@@ -56,6 +56,19 @@ void RRAMspec::set_values(){
   numBanks    = NUM_BANKS;
   numRows     = NUM_ROWS;
   numCols     = NUM_COLS;
+  rdPwr       = RD_PWR;
+  rdLat       = RD_LAT;
+  rdHalfSel   = RD_HALF_SEL_PWR;
+  wrPwr       = WR_PWR;
+  wrSetPwr    = WR_SET_BIT_PWR;
+  wrLat       = WR_LAT;
+  wrHalfSel   = WR_HALF_SEL_PWR;
+  notPwr      = NOT_PWR;
+  notLat      = NOT_LAT;
+  notHalfSel  = NOT_HALF_SEL_PWR;
+  orPwr       = OR_PWR;
+  orLat       = OR_LAT;
+  orHalfSel   = OR_HALF_SEL_PWR;
 
   requestTime   = 0;
   requestPower  = 0;
@@ -89,6 +102,7 @@ void RRAMspec::set_values(){
   cout << "No. of Rows:          " << numRows     << endl;
   cout << "No. of Cols:          " << numCols     << endl;
   cout << RESET << endl;
+
 }
 
 
@@ -112,22 +126,23 @@ void RRAMspec::free_memory(void){
 
 
 
-float calculate_request_energy(requestType request, float requestTime, int sameRowLOP){
+float calculate_request_energy(requestType request, float requestTime, int sameRowLOP, int numRows, int numCols, 
+          float rdPwr, float rdHalfSel, float wrPwr, float wrHalfSel, float notPwr, float notHalfSel, float orPwr, float orHalfSel){
 
   float requestEnergy = 0;
   
   if (request == READ){
-    requestEnergy  = (RD_PWR * requestTime)  + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
+    requestEnergy  = (rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1));
   }
   else if (request == WRITE){
-    requestEnergy  = (WR_PWR * requestTime)  + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
+    requestEnergy  = (wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1));
   }
   else if (request == NOT){
-    requestEnergy  = (NOT_PWR * requestTime) + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
+    requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows-1 + numCols-1));
   }
   else { //OR
-    requestEnergy  = (OR_PWR * requestTime)  + (HALF_SEL_PWR * requestTime * (NUM_ROWS-1 + NUM_COLS-1));
-    requestEnergy += (sameRowLOP) ? (HALF_SEL_PWR * requestTime * (NUM_COLS-1)) : (HALF_SEL_PWR * requestTime * (NUM_ROWS-1));
+    requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numRows-1 + numCols-1));
+    requestEnergy += (sameRowLOP) ? (orHalfSel * requestTime * (numCols-1)) : (orHalfSel * requestTime * (numRows-1));
   }
 
   return requestEnergy;
@@ -159,11 +174,12 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
     return -1; //invalid request
 
     
-  requestTime   = (request == READ) ? RD_LAT : WR_LAT;
-  requestEnergy = calculate_request_energy(request, requestTime, 0);
+  requestTime   = (request == READ) ? rdLat : wrLat;
+  requestEnergy = calculate_request_energy(request, requestTime, 0, numRows, numCols, 
+          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
 
   if (request == WRITE){
-    requestEnergy += requestTime * WR_SET_BIT_PWR * noSetBits(data);
+    requestEnergy += requestTime * wrSetPwr * noSetBits(data);
   }
   
   requestPower = requestEnergy/requestTime;
@@ -214,8 +230,9 @@ int RRAMspec::service_not_request(requestType request, int bank, int row, int co
       memory[bank][row][col].data[fourbytes] = ~memory[bank][row][col].data[fourbytes];
   }
  
-  requestTime   = NOT_LAT;
-  requestEnergy = calculate_request_energy(request, requestTime, 0);
+  requestTime   = notLat;
+  requestEnergy = calculate_request_energy(request, requestTime, 0, numRows, numCols, 
+          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
 
   requestPower = requestEnergy/requestTime;
   requestStats.update_stats(requestEnergy, requestPower, requestTime);
@@ -232,6 +249,15 @@ int RRAMspec::service_not_request(requestType request, int bank, int row, int co
   cout << " Time: "    << setw(6)  << requestTime;
   cout << " POWER: "   << setw(7)  << requestPower;
   cout << " ENERGY :"  << setw(7)  << requestEnergy;
+  cout << endl << hex;
+  cout <<  " DATA:";
+  cout << setfill('0');
+  for (int fourbytes = 0; fourbytes < DATA_SIZE-1; fourbytes++){
+    cout << setw(8) << memory[bank][row][col].data[fourbytes]  << "_";
+  }
+  cout << setw(8) << memory[bank][row][col].data[DATA_SIZE-1];
+  cout << dec << RESET << endl << endl;
+  cout << setfill(' ');
   cout << endl << endl << RESET;
   #endif
 
@@ -254,8 +280,9 @@ int RRAMspec::service_or_request(requestType request, int bank, int rowOne, int 
     memory[bank][rowOne][colOne].data[fourbytes] | memory[bank][rowTwo][colTwo].data[fourbytes];
   }
 
-  requestTime   = OR_LAT;
-  requestEnergy = calculate_request_energy(request, requestTime, (rowOne == rowTwo));
+  requestTime   = orLat;
+  requestEnergy = calculate_request_energy(request, requestTime, (rowOne == rowTwo), numRows, numCols, 
+          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
 
   requestPower = requestEnergy/requestTime;
   requestStats.update_stats(requestEnergy, requestPower, requestTime);
@@ -273,6 +300,15 @@ int RRAMspec::service_or_request(requestType request, int bank, int rowOne, int 
   cout << " Time: "    << setw(6)  << requestTime;
   cout << " POWER: "   << setw(7)  << requestPower;
   cout << " ENERGY :"  << setw(7)  << requestEnergy;
+  cout << endl << hex;
+  cout <<  " DATA:";
+  cout << setfill('0');
+  for (int fourbytes = 0; fourbytes < DATA_SIZE-1; fourbytes++){
+    cout << setw(8) << memory[bank][rowOne][colOne].data[fourbytes]  << "_";
+  }
+  cout << setw(8) << memory[bank][rowOne][colOne].data[DATA_SIZE-1];
+  cout << dec << RESET << endl << endl;
+  cout << setfill(' ');
   cout << endl << endl << RESET;
     #endif
 
@@ -286,11 +322,11 @@ int RRAMspec::verify_readwrite_request(requestType request, int bank, int row, i
 
   if ((request != READ) && (request != WRITE))
     return -1;
-  if ((bank > NUM_BANKS) || (bank < 0))
+  if ((bank > numBanks) || (bank < 0))
     return -1;
-  if ((row > NUM_ROWS) || (row < 0))
+  if ((row > numRows) || (row < 0))
     return -1;
-  if ((col > NUM_COLS) || (col < 0))
+  if ((col > numCols) || (col < 0))
     return -1;
 
   return 0;
@@ -303,11 +339,11 @@ int RRAMspec::verify_not_request(requestType request, int bank, int row, int col
 
   if (request != NOT)
     return -1;
-  if ((bank > NUM_BANKS) || (bank < 0))
+  if ((bank > numBanks) || (bank < 0))
     return -1;
-  if ((row > NUM_ROWS) || (row < 0))
+  if ((row > numRows) || (row < 0))
     return -1;
-  if ((col > NUM_COLS) || (col < 0))
+  if ((col > numCols) || (col < 0))
     return -1;
 
   return 0;
@@ -321,15 +357,15 @@ int RRAMspec::verify_or_request(requestType request, int bank, int rowOne, int c
 
   if (request != OR)
     return -1;
-  if ((bank > NUM_BANKS) || (bank < 0))
+  if ((bank > numBanks) || (bank < 0))
     return -1;
-  if ((rowOne > NUM_ROWS) || (rowOne < 0))
+  if ((rowOne > numRows) || (rowOne < 0))
     return -1;
-  if ((colOne > NUM_COLS) || (colOne < 0))
+  if ((colOne > numCols) || (colOne < 0))
     return -1;
-  if ((rowTwo > NUM_ROWS) || (rowTwo < 0))
+  if ((rowTwo > numRows) || (rowTwo < 0))
     return -1;
-  if ((colTwo > NUM_COLS) || (colTwo < 0))
+  if ((colTwo > numCols) || (colTwo < 0))
     return -1;
   if ((rowOne != rowTwo) && (colOne != colTwo))
     return -1;
@@ -359,7 +395,17 @@ int RRAMspec::parse(){
   
   while (fread((&bytes_read), sizeof(unsigned long long), 1, fp) != 0){
 
-    bytes_read = bytes_read >> 4;
+    /*  
+        MSB
+        2 bits 0
+        3 bits REQ (REQ = 0 -> READ, REQ = 1 -> WRITE, REQ = 2 -> NOT, REQ = 3 -> OR)
+        9 bits bank
+        15 bits row2
+        10 bits col2
+        15 bits row1
+        10 bits col1 
+        LSB
+    */
 
     col1       = bytes_read & 0x3FF;
     bytes_read = bytes_read >> 10;
@@ -373,12 +419,11 @@ int RRAMspec::parse(){
     row2       = bytes_read & 0x7FFF;
     bytes_read = bytes_read >> 15;
 
-    bank       = bytes_read & 0x7;
-    bytes_read = bytes_read >> 3;
+    bank       = bytes_read & 0x1FF;
+    bytes_read = bytes_read >> 9;
 
     request    = bytes_read & 0x7;
     bytes_read = bytes_read >> 3;
-
     
     if (request == 0)
       REQ = READ;
@@ -395,7 +440,7 @@ int RRAMspec::parse(){
     }
     else{
       for(int iter = 0; iter < DATA_SIZE; iter++){
-	data[iter] = 0x00000000;
+	      data[iter] = 0x00000000;
       }
     }
     
@@ -420,8 +465,22 @@ int RRAMspec::parse(){
 int main(){
 
   RRAMspec RRAM;
-
   RRAM.set_values();
+
+  /*requestType Req = WRITE;
+  unsigned int data[DATA_SIZE];
+  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+    data[fourbytes] = 0xFFFFFFFF;
+  }
+
+  RRAM.service_readwrite_request(Req, 1, 0, 0, data);
+  Req = READ;
+  RRAM.service_readwrite_request(Req, 1, 0, 0, data);
+  RRAM.service_readwrite_request(Req, 1, 0, 1, data);
+  Req = OR;
+  RRAM.service_or_request(Req, 1, 0, 0, 0, 1);
+  Req = READ;
+  RRAM.service_readwrite_request(Req, 1, 0, 1, data);*/
 
   RRAM.parse();
   

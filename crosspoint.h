@@ -18,28 +18,31 @@ using namespace std;
 
 
 /************ TO CHANGE **************/
+//Default values
 #define DEBUG 
 
-#define DATA_SIZE    16
+#define DATA_SIZE        16
 
-#define NUM_BANKS    1
-#define NUM_ROWS     2
-#define NUM_COLS     2
+#define NUM_BANKS        2
+#define NUM_ROWS         2
+#define NUM_COLS         2
 
-#define RD_PWR       1
-#define RD_LAT       5
+#define RD_PWR           1
+#define RD_LAT           5
+#define RD_HALF_SEL_PWR  0.2
 
-#define WR_PWR       3
-#define WR_LAT       5
+#define WR_PWR           3
+#define WR_SET_BIT_PWR   0.001
+#define WR_LAT           5
+#define WR_HALF_SEL_PWR  0.2
 
-#define NOT_PWR      2
-#define NOT_LAT      5
+#define NOT_PWR          2
+#define NOT_LAT          5
+#define NOT_HALF_SEL_PWR 0.2
 
-#define OR_PWR       4
-#define OR_LAT       5
-
-#define HALF_SEL_PWR   0.2
-#define WR_SET_BIT_PWR 0.001
+#define OR_PWR           4
+#define OR_LAT           5
+#define OR_HALF_SEL_PWR  0.2
 
 #define FILENAME     "trace.bin"
 /*************************************/
@@ -89,7 +92,7 @@ class RRAMspec {
 
   
  protected:
-  int   numBanks, numRows, numCols;
+  //int   numBanks, numRows, numCols;
 
   float requestTime, requestPower, requestEnergy;  
   stats requestStats;
@@ -97,7 +100,13 @@ class RRAMspec {
   /* Memory */
   RRAMdata *** memory;
 
-  
+ public: 
+  int numBanks, numRows, numCols;
+  float rdPwr, rdLat, rdHalfSel;
+  float wrPwr, wrSetPwr, wrLat, wrHalfSel;
+  float notPwr, notLat, notHalfSel;
+  float orPwr, orLat, orHalfSel;
+
  public:
   void set_values                  (void);
   void free_memory                 (void);
