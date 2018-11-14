@@ -17,9 +17,9 @@ using namespace std;
 #define DARKBLUE "\033[1m\033[40m"
 
 
-/************ TO CHANGE **************/
 //Default values
-#define DEBUG 
+
+//#define DEBUG 
 
 #define DATA_SIZE        16
 
@@ -45,7 +45,6 @@ using namespace std;
 #define OR_HALF_SEL_PWR  0.2
 
 #define FILENAME     "trace.bin"
-/*************************************/
           
 
 enum requestType   {READ, WRITE, NOT, OR};
@@ -107,7 +106,10 @@ class RRAMspec {
   float notPwr, notLat, notHalfSel;
   float orPwr, orLat, orHalfSel;
 
+  const char* traceFilename;
+
  public:
+  void set_defaults                (void);
   void set_values                  (void);
   void free_memory                 (void);
   

@@ -1,5 +1,7 @@
 
 #include "helper.h"
+#include <cstring>
+
 
 /*Initialising stats */
 void stats::init_values(){
@@ -45,14 +47,9 @@ void RRAMdata::init_values(){
   }
 }
 
-
-
-/* Defining RRAMspec class Functions */
-/* Init function for RRAM class */
-void RRAMspec::set_values(){
-  
-  int bank, row, col;
-
+/* Sets parameters for RRAM class to default values*/
+/* Overwrite these by calling parse_args*/
+void RRAMspec::set_defaults(){
   numBanks    = NUM_BANKS;
   numRows     = NUM_ROWS;
   numCols     = NUM_COLS;
@@ -69,6 +66,14 @@ void RRAMspec::set_values(){
   orPwr       = OR_PWR;
   orLat       = OR_LAT;
   orHalfSel   = OR_HALF_SEL_PWR;
+  traceFilename = FILENAME;
+}
+
+/* Defining RRAMspec class Functions */
+/* Init function for RRAM class */
+void RRAMspec::set_values(){
+  
+  int bank, row, col;
 
   requestTime   = 0;
   requestPower  = 0;
@@ -96,19 +101,13 @@ void RRAMspec::set_values(){
   }
   
   requestStats.init_values();
-  
-  cout << RED << endl << "SETTING UP RRAM VALUES " << BLUE << endl;
-  cout << "No. of Banks:         " << numBanks    << endl;
-  cout << "No. of Rows:          " << numRows     << endl;
-  cout << "No. of Cols:          " << numCols     << endl;
-  cout << RESET << endl;
 
 }
 
 
 
 
-/* Free RRAM emory */
+/* Free RRAM memory */
 void RRAMspec::free_memory(void){
 
   int bank, row;
@@ -376,7 +375,7 @@ int RRAMspec::verify_or_request(requestType request, int bank, int rowOne, int c
 }
 
 
-
+/* Parses trace and services requests */
 int RRAMspec::parse(){
 
   FILE * fp;
@@ -386,7 +385,7 @@ int RRAMspec::parse(){
   
   unsigned int data[DATA_SIZE];
   
-  fp = fopen(FILENAME, "rb");
+  fp = fopen(traceFilename, "rb");
   
   if (fp == NULL){
     cout << RED << "TRACE NOT FOUND" << RESET << endl;
@@ -460,11 +459,81 @@ int RRAMspec::parse(){
 }
 
 
+/*
+
+./crosspoint -f <trace_file_name> -b <numBanks> -r <numRows> -c <numCols> -rdp <rdPwr> -rdl <rdLat> -rdh <rdHalfSel>
+             -wrp <wrPwr> -wrs <wrSetPwr>-wrl <wrLat> -wrh <wrHalfSel> -np <notPwr> -nl <notLat> -nh <notHalfSel>
+             -op <orPwr> -ol <orLat> -oh <orHalfSel>
+*/
+void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
+  for(int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "-f") == 0) {
+        RRAM.traceFilename = argv[i+1];
+    }
+    if (strcmp(argv[i], "-b") == 0) {
+        RRAM.numBanks = atoi(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-r") == 0) {
+        RRAM.numRows = atoi(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-c") == 0) {
+        RRAM.numCols = atoi(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-rdp") == 0) {
+        RRAM.rdPwr = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-rdl") == 0) {
+        RRAM.rdLat = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-rdh") == 0) {
+        RRAM.rdHalfSel = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-wrp") == 0) {
+        RRAM.wrPwr = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-wrs") == 0) {
+        RRAM.wrSetPwr = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-wrl") == 0) {
+        RRAM.wrLat = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-wrh") == 0) {
+        RRAM.wrHalfSel = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-np") == 0) {
+        RRAM.notPwr = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-nl") == 0) {
+        RRAM.notLat = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-nh") == 0) {
+        RRAM.notHalfSel = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-op") == 0) {
+        RRAM.orPwr = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-ol") == 0) {
+        RRAM.orLat = (float) atof(argv[i+1]);
+    }
+    if (strcmp(argv[i], "-oh") == 0) {
+        RRAM.orHalfSel = (float) atof(argv[i+1]);
+    }
+
+  }
+  cout << RED << endl << "SETTING UP RRAM VALUES " << BLUE << endl;
+  cout << "No. of Banks:         " << RRAM.numBanks    << endl;
+  cout << "No. of Rows:          " << RRAM.numRows     << endl;
+  cout << "No. of Cols:          " << RRAM.numCols     << endl;
+  cout << RESET << endl;
+}
 
 
-int main(){
+int main(int argc, char * argv[]){
 
   RRAMspec RRAM;
+
+  RRAM.set_defaults();
+  parse_args(argc, argv, RRAM);
   RRAM.set_values();
 
   /*requestType Req = WRITE;
@@ -483,10 +552,8 @@ int main(){
   RRAM.service_readwrite_request(Req, 1, 0, 1, data);*/
 
   RRAM.parse();
-  
   RRAM.free_memory();
   RRAM.show_stats();
-  
   return 0; 
 }
 
