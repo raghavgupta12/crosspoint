@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <cstring>
 
 using namespace std;
 
@@ -91,8 +92,6 @@ class RRAMspec {
 
   
  protected:
-  //int   numBanks, numRows, numCols;
-
   float requestTime, requestPower, requestEnergy;  
   stats requestStats;
 

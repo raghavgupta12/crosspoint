@@ -1,6 +1,5 @@
 
 #include "helper.h"
-#include <cstring>
 
 
 /*Initialising stats */
@@ -216,8 +215,8 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
 
 
 
-/* Function to find and add energy, latency consumed by a bitwise NOT request. Returns 0 if sucessful.
-   Else returns -1*/
+/* Function to find and add energy, latency consumed by a bitwise NOT request on a cell. 
+   Returns 0 if sucessful. Else returns -1*/
 
 int RRAMspec::service_not_request(requestType request, int bank, int row, int col){
 
@@ -460,10 +459,10 @@ int RRAMspec::parse(){
 
 
 /*
-
-./crosspoint -f <trace_file_name> -b <numBanks> -r <numRows> -c <numCols> -rdp <rdPwr> -rdl <rdLat> -rdh <rdHalfSel>
-             -wrp <wrPwr> -wrs <wrSetPwr>-wrl <wrLat> -wrh <wrHalfSel> -np <notPwr> -nl <notLat> -nh <notHalfSel>
-             -op <orPwr> -ol <orLat> -oh <orHalfSel>
+ *** COMMAND LINE FORMAT ***
+  ./crosspoint -f <trace_file_name> -b <numBanks> -r <numRows> -c <numCols> -rdp <rdPwr> -rdl <rdLat> -rdh <rdHalfSel>
+               -wrp <wrPwr> -wrs <wrSetPwr>-wrl <wrLat> -wrh <wrHalfSel> -np <notPwr> -nl <notLat> -nh <notHalfSel>
+               -op <orPwr> -ol <orLat> -oh <orHalfSel>
 */
 void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
   for(int i = 1; i < argc; i++) {
@@ -532,28 +531,17 @@ int main(int argc, char * argv[]){
 
   RRAMspec RRAM;
 
+  //initialize rram parameters to defaults first
   RRAM.set_defaults();
+  //parse command line arguments, overwrite parameter values as necessary
   parse_args(argc, argv, RRAM);
+  //initialize rest of values & allocate memory
   RRAM.set_values();
-
-  /*requestType Req = WRITE;
-  unsigned int data[DATA_SIZE];
-  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-    data[fourbytes] = 0xFFFFFFFF;
-  }
-
-  RRAM.service_readwrite_request(Req, 1, 0, 0, data);
-  Req = READ;
-  RRAM.service_readwrite_request(Req, 1, 0, 0, data);
-  RRAM.service_readwrite_request(Req, 1, 0, 1, data);
-  Req = OR;
-  RRAM.service_or_request(Req, 1, 0, 0, 0, 1);
-  Req = READ;
-  RRAM.service_readwrite_request(Req, 1, 0, 1, data);*/
 
   RRAM.parse();
   RRAM.free_memory();
   RRAM.show_stats();
+
   return 0; 
 }
 
