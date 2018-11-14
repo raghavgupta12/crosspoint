@@ -38,8 +38,8 @@ int main(){
 
     if (req == 3){
       if (   ((rowOne == rowTwo) && (colOne == colTwo))
-	           || ((rowOne != rowTwo) && (colOne != colTwo))) {
-	      req = rand() % 3;
+             || ((rowOne != rowTwo) && (colOne != colTwo))) {
+        req = rand() % 3;
       }
     }
       
@@ -51,7 +51,7 @@ int main(){
 
     #ifdef DEBUG
     printf("req = %llu, bank = %llu, rowOne = %llu, colOne = %llu, rowTwo = %llu, colTwo = %llu\n",
-	    req, bank, rowOne, colOne, rowTwo, colTwo);
+      req, bank, rowOne, colOne, rowTwo, colTwo);
     #endif 
 
     fwrite(&bytes_write, sizeof(unsigned long long), 1, fp);
@@ -71,6 +71,5 @@ int main(){
   fclose(fp);
   return 1;
 }
-
 
 

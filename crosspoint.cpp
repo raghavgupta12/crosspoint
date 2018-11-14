@@ -351,7 +351,7 @@ int RRAMspec::verify_not_request(requestType request, int bank, int row, int col
 
 /*Function to ensure OR request is valid. Returns 0 if successful, else returns -1*/
 int RRAMspec::verify_or_request(requestType request, int bank, int rowOne, int colOne,
-				 int rowTwo, int colTwo){
+         int rowTwo, int colTwo){
 
   if (request != OR)
     return -1;
@@ -438,7 +438,7 @@ int RRAMspec::parse(){
     }
     else{
       for(int iter = 0; iter < DATA_SIZE; iter++){
-	      data[iter] = 0x00000000;
+        data[iter] = 0x00000000;
       }
     }
     
@@ -520,9 +520,16 @@ void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
 
   }
   cout << RED << endl << "SETTING UP RRAM VALUES " << BLUE << endl;
+  cout << "Trace Name: " << RRAM.traceFilename << endl;
   cout << "No. of Banks:         " << RRAM.numBanks    << endl;
   cout << "No. of Rows:          " << RRAM.numRows     << endl;
   cout << "No. of Cols:          " << RRAM.numCols     << endl;
+  cout << endl;
+  cout << "RdPwr:  " << RRAM.rdPwr << "    RdLat:  " << RRAM.rdLat << "    RdHalfSelPwr:  " << RRAM.rdHalfSel << endl;
+  cout << "WrPwr:  " << RRAM.wrPwr << "    WrLat:  " << RRAM.wrLat << "    WrHalfSelPwr:  " << RRAM.wrHalfSel 
+       << "    WrSetBitPwr: " << RRAM.wrSetPwr << endl;
+  cout << "NotPwr: " << RRAM.notPwr << "    NotLat: " << RRAM.notLat << "    NotHalfSelPwr: " << RRAM.notHalfSel << endl;
+  cout << "OrPwr:  " << RRAM.orPwr << "    OrLat:  " << RRAM.orLat << "    OrHalfSelPwr:  " << RRAM.orHalfSel << endl;
   cout << RESET << endl;
 }
 
@@ -544,4 +551,3 @@ int main(int argc, char * argv[]){
 
   return 0; 
 }
-

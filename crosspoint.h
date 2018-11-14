@@ -53,7 +53,7 @@ enum requestType   {READ, WRITE, NOT, OR};
 const string requestString[] = {"READ", "WRITE", "NOT", "OR"};
 
 
-		    
+        
 class stats{
  public:
 
@@ -71,7 +71,7 @@ class stats{
 }; 
 
 
-		    
+        
 class bufferData{
  public:
   unsigned int data[DATA_SIZE];
@@ -79,7 +79,7 @@ class bufferData{
 };
 
 
-		    
+        
 class RRAMdata{
  public:
   unsigned int data[DATA_SIZE];
@@ -136,4 +136,3 @@ class RRAMspec {
   int parse();
 
 };
-
