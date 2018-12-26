@@ -49,11 +49,12 @@ using namespace std;
           
 
 enum requestType   {READ, WRITE, NOT, OR};
+enum granSel  {ROW, COL, CELL_SAMEROW, CELL_SAMECOL};
 
 const string requestString[] = {"READ", "WRITE", "NOT", "OR"};
 
 
-		    
+        
 class stats{
  public:
 
@@ -71,7 +72,7 @@ class stats{
 }; 
 
 
-		    
+        
 class bufferData{
  public:
   unsigned int data[DATA_SIZE];
@@ -79,7 +80,7 @@ class bufferData{
 };
 
 
-		    
+        
 class RRAMdata{
  public:
   unsigned int data[DATA_SIZE];
@@ -112,14 +113,14 @@ class RRAMspec {
   void set_values                  (void);
   void free_memory                 (void);
   
-  int service_readwrite_request (requestType, int,  int, int, unsigned int write_data[DATA_SIZE]);
+  int service_readwrite_request (requestType, granSel, int,  int, int, unsigned int write_data[DATA_SIZE]);
   /*                             requestType, bank, row, col, data */
   
-  int service_or_request        (requestType, int,  int,    int,    int,    int );
-  /*                             requestType, bank, rowOne, colOne, rowTwo, colTwo */  
+  int service_or_request        (requestType, granSel, int,  int,    int,    int,    int );
+  /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */  
 
-  int service_not_request       (requestType, int,  int, int);
-  /*                             requestType, bank, row, col */
+  int service_not_request       (requestType, granSel, int,  int,    int,    int,    int);
+  /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */
 
   
   void show_stats               (void);
@@ -127,11 +128,11 @@ class RRAMspec {
   int verify_readwrite_request  (requestType, int,  int, int);
   /*                             requestType, bank, row, col*/
 
-  int verify_or_request         (requestType, int,  int,    int,    int,    int);
-  /*                             requestType, bank, rowOne, colOne, rowTwo, colTwo */
+  int verify_or_request         (requestType, granSel, int,  int,    int,    int,    int);
+  /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */
 
-  int verify_not_request        (requestType, int,  int, int);
-  /*                             requestType, bank, row, col */
+  int verify_not_request        (requestType, granSel, int,  int,    int,    int,    int);
+  /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */
 
   int parse();
 

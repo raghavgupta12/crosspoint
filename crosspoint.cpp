@@ -124,7 +124,7 @@ void RRAMspec::free_memory(void){
 
 
 
-float calculate_request_energy(requestType request, float requestTime, int sameRowLOP, int numRows, int numCols, 
+float calculate_request_energy(requestType request, granSel sel, float requestTime, int numRows, int numCols, 
           float rdPwr, float rdHalfSel, float wrPwr, float wrHalfSel, float notPwr, float notHalfSel, float orPwr, float orHalfSel){
 
   float requestEnergy = 0;
@@ -136,11 +136,26 @@ float calculate_request_energy(requestType request, float requestTime, int sameR
     requestEnergy  = (wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1));
   }
   else if (request == NOT){
-    requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows-1 + numCols-1));
+    if(sel == ROW) {
+      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols * (numRows-2)));
+    }
+    else if(sel == COL) {
+      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows * (numCols-2)));
+    }
+    else if(sel == CELL_SAMEROW) {
+      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols-2 + 2*(numRows-2)));
+    }
+    else { //sel == CELL_SAMECOL
+      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows-2 + 2*(numCols-2)));
+    }
   }
   else { //OR
-    requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numRows-1 + numCols-1));
-    requestEnergy += (sameRowLOP) ? (orHalfSel * requestTime * (numCols-1)) : (orHalfSel * requestTime * (numRows-1));
+    if(sel == ROW) {
+      requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numCols * (numRows-2)));
+    }
+    else if(sel == COL) {
+      requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numRows * (numCols-2)));
+    }
   }
 
   return requestEnergy;
@@ -151,7 +166,7 @@ float calculate_request_energy(requestType request, float requestTime, int sameR
 /* Function to find and add energy, latency consumed by a read/write request. Returns 0 if sucessful.
    Else returns -1*/
 
-int RRAMspec::service_readwrite_request(requestType request, int bank, int row, int col, unsigned int data[DATA_SIZE]){
+int RRAMspec::service_readwrite_request(requestType request, granSel sel, int bank, int row, int col, unsigned int data[DATA_SIZE]){
 
   if (verify_readwrite_request(request, bank, row, col) == -1){
        return -1;
@@ -173,7 +188,7 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
 
     
   requestTime   = (request == READ) ? rdLat : wrLat;
-  requestEnergy = calculate_request_energy(request, requestTime, 0, numRows, numCols, 
+  requestEnergy = calculate_request_energy(request, sel, requestTime, numRows, numCols, 
           rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
 
   if (request == WRITE){
@@ -215,21 +230,45 @@ int RRAMspec::service_readwrite_request(requestType request, int bank, int row, 
 
 
 
-/* Function to find and add energy, latency consumed by a bitwise NOT request on a cell. 
+/* Function to find and add energy, latency consumed by a bitwise NOT request. 
    Returns 0 if sucessful. Else returns -1*/
 
-int RRAMspec::service_not_request(requestType request, int bank, int row, int col){
+int RRAMspec::service_not_request(requestType request, granSel sel, int bank, int rowOne, int colOne,
+         int rowTwo, int colTwo){
 
-  if (verify_not_request(request, bank, row, col) == -1){
+  if (verify_not_request(request, sel, bank, rowOne, colOne, rowTwo, colTwo) == -1){
       return -1;
   }
   
-  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-      memory[bank][row][col].data[fourbytes] = ~memory[bank][row][col].data[fourbytes];
+  if(sel == ROW) {
+    for(int c = 0; c < NUM_COLS; c++) {
+      for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+        memory[bank][rowOne][c].data[fourbytes] = ~memory[bank][rowOne][c].data[fourbytes];
+      }
+    }
+  }
+  else if(sel == COL) {
+    for(int r = 0; r < NUM_ROWS; r++) {
+      for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+        memory[bank][r][colOne].data[fourbytes] = ~memory[bank][r][colOne].data[fourbytes];
+      }
+    }
+  }
+  else if(sel == CELL_SAMEROW) {
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+        memory[bank][rowOne][colOne].data[fourbytes] = ~memory[bank][rowOne][colOne].data[fourbytes];
+        memory[bank][rowOne][colTwo].data[fourbytes] = ~memory[bank][rowOne][colTwo].data[fourbytes];
+    }
+  }
+  else { //sel == CELL_SAMECOL
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+        memory[bank][rowOne][colOne].data[fourbytes] = ~memory[bank][rowOne][colOne].data[fourbytes];
+        memory[bank][rowTwo][colOne].data[fourbytes] = ~memory[bank][rowTwo][colOne].data[fourbytes];
+    }
   }
  
   requestTime   = notLat;
-  requestEnergy = calculate_request_energy(request, requestTime, 0, numRows, numCols, 
+  requestEnergy = calculate_request_energy(request, sel, requestTime, numRows, numCols, 
           rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
 
   requestPower = requestEnergy/requestTime;
@@ -267,19 +306,34 @@ int RRAMspec::service_not_request(requestType request, int bank, int row, int co
 /* Function to find and add energy, latency consumed by a bitwise OR request. Returns 0 if sucessful.                                                                                                     
    Else returns -1*/
 
-int RRAMspec::service_or_request(requestType request, int bank, int rowOne, int colOne, int rowTwo, int colTwo){
+int RRAMspec::service_or_request(requestType request, granSel sel, int bank, int rowOne, int colOne, int rowTwo, int colTwo){
 
-  if (verify_or_request(request, bank, rowOne, colOne, rowTwo, colTwo) == -1){
+  if (verify_or_request(request, sel, bank, rowOne, colOne, rowTwo, colTwo) == -1){
     return -1;
   }
 
-  for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-    memory[bank][rowOne][colOne].data[fourbytes] =
-    memory[bank][rowOne][colOne].data[fourbytes] | memory[bank][rowTwo][colTwo].data[fourbytes];
+  if(sel == ROW) {
+    for(int c = 0; c < numCols; c++) {
+      for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+        memory[bank][rowOne][c].data[fourbytes] =
+        memory[bank][rowOne][c].data[fourbytes] | memory[bank][rowTwo][c].data[fourbytes];
+      }
+    }
+  }
+  else if(sel == COL) {
+    for(int r = 0; r < numRows; r++) {
+      for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
+        memory[bank][r][colOne].data[fourbytes] =
+        memory[bank][r][colOne].data[fourbytes] | memory[bank][r][colTwo].data[fourbytes];
+      }
+    }
+  }
+  else {
+    return -1;
   }
 
   requestTime   = orLat;
-  requestEnergy = calculate_request_energy(request, requestTime, (rowOne == rowTwo), numRows, numCols, 
+  requestEnergy = calculate_request_energy(request, sel, requestTime, numRows, numCols, 
           rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
 
   requestPower = requestEnergy/requestTime;
@@ -333,16 +387,38 @@ int RRAMspec::verify_readwrite_request(requestType request, int bank, int row, i
 
 
 /*Function to ensure NOT request is valid. Returns 0 if successful, else returns -1*/
-int RRAMspec::verify_not_request(requestType request, int bank, int row, int col){
+int RRAMspec::verify_not_request(requestType request, granSel sel, int bank, int rowOne, int colOne,
+         int rowTwo, int colTwo){
 
   if (request != NOT)
     return -1;
   if ((bank > numBanks) || (bank < 0))
     return -1;
-  if ((row > numRows) || (row < 0))
+  if ((rowOne > numRows) || (rowOne < 0))
     return -1;
-  if ((col > numCols) || (col < 0))
+  if ((colOne > numCols) || (colOne < 0))
     return -1;
+  if ((rowTwo > numRows) || (rowTwo < 0))
+    return -1;
+  if ((colTwo > numCols) || (colTwo < 0))
+    return -1;
+
+  if(sel == ROW) {
+    if(rowOne == rowTwo)
+      return -1;
+  }
+  if(sel == COL) {
+    if(colOne == colTwo)
+      return -1;
+  }
+  if(sel == CELL_SAMEROW) {
+    if(colOne == colTwo) 
+      return -1;
+  }
+  if(sel == CELL_SAMECOL) {
+    if(rowOne == rowTwo)
+      return -1;
+  }
 
   return 0;
 }
@@ -350,8 +426,8 @@ int RRAMspec::verify_not_request(requestType request, int bank, int row, int col
 
 
 /*Function to ensure OR request is valid. Returns 0 if successful, else returns -1*/
-int RRAMspec::verify_or_request(requestType request, int bank, int rowOne, int colOne,
-				 int rowTwo, int colTwo){
+int RRAMspec::verify_or_request(requestType request, granSel sel, int bank, int rowOne, int colOne,
+         int rowTwo, int colTwo){
 
   if (request != OR)
     return -1;
@@ -370,6 +446,20 @@ int RRAMspec::verify_or_request(requestType request, int bank, int rowOne, int c
   if ((rowOne == rowTwo) && (colOne == colTwo))
     return -1;
 
+  if(sel == ROW) {
+    if(rowOne == rowTwo)
+      return -1;
+  }
+  if(sel == COL) {
+    if(colOne == colTwo)
+      return -1;
+  }
+  if(sel == CELL_SAMEROW) {
+    return -1;
+  }
+  if(sel == CELL_SAMECOL) {
+    return -1;
+  }
   return 0;
 }
 
@@ -379,8 +469,9 @@ int RRAMspec::parse(){
 
   FILE * fp;
   unsigned long long bytes_read;
-  int  request, bank, row1, col1, row2, col2;
+  int  select, request, bank, row1, col1, row2, col2;
   requestType REQ;
+  granSel SEL;
   
   unsigned int data[DATA_SIZE];
   
@@ -393,16 +484,28 @@ int RRAMspec::parse(){
   
   while (fread((&bytes_read), sizeof(unsigned long long), 1, fp) != 0){
 
-    /*  
-        MSB
-        2 bits 0
-        3 bits REQ (REQ = 0 -> READ, REQ = 1 -> WRITE, REQ = 2 -> NOT, REQ = 3 -> OR)
-        9 bits bank
-        15 bits row2
-        10 bits col2
-        15 bits row1
-        10 bits col1 
-        LSB
+    /*
+        *** BIT LAYOUT ***
+      MSB
+      2 bits SEL (granularity select)
+      3 bits REQ
+      9 bits bank
+      15 bits row2
+      10 bits col2
+      15 bits row1
+      10 bits col1 
+      LSB
+
+      SEL:
+      0 = Row (two rows)
+      1 = Col (two cols)
+      2 = Cell (cell-level, either same column or same row)
+
+      REQ:
+      0 = read
+      1 = write
+      2 = not
+      3 = or
     */
 
     col1       = bytes_read & 0x3FF;
@@ -422,15 +525,28 @@ int RRAMspec::parse(){
 
     request    = bytes_read & 0x7;
     bytes_read = bytes_read >> 3;
+
+    select     = bytes_read & 0x3;
+    bytes_read = bytes_read >> 2;
     
     if (request == 0)
       REQ = READ;
     else if (request == 1)
       REQ = WRITE;
-    else if (request == 2)
+    else if (request == 2) 
       REQ = NOT;
-    else
+    else //(request == 3)
       REQ = OR;
+
+    if(select == 0)
+      SEL = ROW;
+    else if(select == 1)
+      SEL = COL;
+    else if(select == 2)
+      SEL = CELL_SAMEROW;
+    else if(select == 3)
+      SEL = CELL_SAMECOL;
+
 
     
     if (REQ == WRITE) /* Also get the data to be written */{
@@ -438,18 +554,18 @@ int RRAMspec::parse(){
     }
     else{
       for(int iter = 0; iter < DATA_SIZE; iter++){
-	      data[iter] = 0x00000000;
+        data[iter] = 0x00000000;
       }
     }
     
     if (REQ == NOT){
-      service_not_request(REQ, bank, row1, col1);
+      service_not_request(REQ, SEL, bank, row1, col1, row2, col2);
     }
     else if (REQ == OR){
-      service_or_request(REQ, bank, row1, col1, row2, col2);
+      service_or_request(REQ, SEL, bank, row1, col1, row2, col2);
     }
     else {
-      service_readwrite_request(REQ, bank, row1, col1, data);
+      service_readwrite_request(REQ, SEL, bank, row1, col1, data);
     }
   }
   
@@ -520,9 +636,16 @@ void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
 
   }
   cout << RED << endl << "SETTING UP RRAM VALUES " << BLUE << endl;
+  cout << "Trace Name: " << RRAM.traceFilename << endl;
   cout << "No. of Banks:         " << RRAM.numBanks    << endl;
   cout << "No. of Rows:          " << RRAM.numRows     << endl;
   cout << "No. of Cols:          " << RRAM.numCols     << endl;
+  cout << endl;
+  cout << "RdPwr:  " << RRAM.rdPwr << "    RdLat:  " << RRAM.rdLat << "    RdHalfSelPwr:  " << RRAM.rdHalfSel << endl;
+  cout << "WrPwr:  " << RRAM.wrPwr << "    WrLat:  " << RRAM.wrLat << "    WrHalfSelPwr:  " << RRAM.wrHalfSel 
+       << "    WrSetBitPwr: " << RRAM.wrSetPwr << endl;
+  cout << "NotPwr: " << RRAM.notPwr << "    NotLat: " << RRAM.notLat << "    NotHalfSelPwr: " << RRAM.notHalfSel << endl;
+  cout << "OrPwr:  " << RRAM.orPwr << "    OrLat:  " << RRAM.orLat << "    OrHalfSelPwr:  " << RRAM.orHalfSel << endl;
   cout << RESET << endl;
 }
 
