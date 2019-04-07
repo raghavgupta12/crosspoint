@@ -11,6 +11,9 @@ make: $(OBJS)
 trace: make_sample_trace.cpp
 	$(CC) $(LFLAGS) make_sample_trace.cpp -o trace
 
+mmul: mmul.cpp
+	$(CC) $(LFLAGS) mmul.cpp -o mmul
+
 clean:
 	rm -rf crosspoint trace trace.bin *~ 
 

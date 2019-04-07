@@ -20,13 +20,13 @@ using namespace std;
 
 //Default values
 
-//#define DEBUG 
+#define DEBUG 
 
 #define DATA_SIZE        16
 
-#define NUM_BANKS        2
-#define NUM_ROWS         2
-#define NUM_COLS         2
+#define NUM_BANKS        3
+#define NUM_ROWS         5
+#define NUM_COLS         5
 
 #define RD_PWR           1
 #define RD_LAT           5

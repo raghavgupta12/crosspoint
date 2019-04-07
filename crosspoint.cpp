@@ -167,11 +167,9 @@ float calculate_request_energy(requestType request, granSel sel, float requestTi
    Else returns -1*/
 
 int RRAMspec::service_readwrite_request(requestType request, granSel sel, int bank, int row, int col, unsigned int data[DATA_SIZE]){
-
   if (verify_readwrite_request(request, bank, row, col) == -1){
        return -1;
   } 
-
   
   if (request == READ){
     for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
@@ -280,8 +278,10 @@ int RRAMspec::service_not_request(requestType request, granSel sel, int bank, in
 
   cout << "Request: "    << setw(5)  << requestString[request];
   cout << " Bank: "     << setw(4)  << bank;
-  cout << " Row-1: "    << setw(6)  << row;
-  cout << " Col-1: "    << setw(4)  << col;
+  cout << " Row-1: "     << setw(6)  << rowOne;
+  cout << " Col-1: "     << setw(4)  << colOne;
+  cout << " Row-2: "     << setw(6)  << rowTwo;
+  cout << " Col-2: "     << setw(4)  << colTwo;
   cout << "                          ";
   cout << " Time: "    << setw(6)  << requestTime;
   cout << " POWER: "   << setw(7)  << requestPower;
@@ -290,9 +290,9 @@ int RRAMspec::service_not_request(requestType request, granSel sel, int bank, in
   cout <<  " DATA:";
   cout << setfill('0');
   for (int fourbytes = 0; fourbytes < DATA_SIZE-1; fourbytes++){
-    cout << setw(8) << memory[bank][row][col].data[fourbytes]  << "_";
+    cout << setw(8) << memory[bank][rowOne][colOne].data[fourbytes]  << "_";
   }
-  cout << setw(8) << memory[bank][row][col].data[DATA_SIZE-1];
+  cout << setw(8) << memory[bank][rowOne][colOne].data[DATA_SIZE-1];
   cout << dec << RESET << endl << endl;
   cout << setfill(' ');
   cout << endl << endl << RESET;
