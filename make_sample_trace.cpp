@@ -76,6 +76,7 @@ int main(){
     #ifdef DEBUG
     printf("sel = %llu, req = %llu, bank = %llu, rowOne = %llu, colOne = %llu, rowTwo = %llu, colTwo = %llu\n",
       sel, req, bank, rowOne, colOne, rowTwo, colTwo);
+    printf("%016llx\n", bytes_write);
     #endif 
 
     fwrite(&bytes_write, sizeof(unsigned long long), 1, fp);

@@ -130,10 +130,26 @@ float calculate_request_energy(requestType request, granSel sel, float requestTi
   float requestEnergy = 0;
   
   if (request == READ){
-    requestEnergy  = (rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1));
+    if(sel == ROW) {
+      requestEnergy  = numCols * ((rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1)));
+    }
+    else if(sel == COL) {
+      requestEnergy  = numRows * ((rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1)));
+    }
+    else {
+      requestEnergy  = (rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1));
+    }
   }
   else if (request == WRITE){
-    requestEnergy  = (wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1));
+    if(sel == ROW) {
+      requestEnergy  = numCols * ((wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1)));
+    }
+    else if(sel == COL) {
+      requestEnergy  = numRows * ((wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1)));
+    }
+    else {
+      requestEnergy  = (wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1));
+    }
   }
   else if (request == NOT){
     if(sel == ROW) {
@@ -171,10 +187,23 @@ int RRAMspec::service_readwrite_request(requestType request, granSel sel, int ba
        return -1;
   } 
   
-  if (request == READ){
-    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
-      data[fourbytes] = memory[bank][row][col].data[fourbytes];
+  if (request == READ){ //TODO add sel casing - need to change buffer implementation & likely prints to make this work
+    /*if(sel == ROW) {
+      for(int c = 0; c < numCols; c++) {
+        for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++) {
+          data[fourbytes] = memory[bank][row][c].data[fourbytes];
+        }
+      }
     }
+    else if(sel == COL) {
+
+    }
+    else {
+
+    }*/
+    for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++) {
+          data[fourbytes] = memory[bank][row][col].data[fourbytes];
+      }
   }
   else if (request == WRITE){
     for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
@@ -635,6 +664,7 @@ void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
     }
 
   }
+    #ifdef DEBUG
   cout << RED << endl << "SETTING UP RRAM VALUES " << BLUE << endl;
   cout << "Trace Name: " << RRAM.traceFilename << endl;
   cout << "No. of Banks:         " << RRAM.numBanks    << endl;
@@ -647,6 +677,7 @@ void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
   cout << "NotPwr: " << RRAM.notPwr << "    NotLat: " << RRAM.notLat << "    NotHalfSelPwr: " << RRAM.notHalfSel << endl;
   cout << "OrPwr:  " << RRAM.orPwr << "    OrLat:  " << RRAM.orLat << "    OrHalfSelPwr:  " << RRAM.orHalfSel << endl;
   cout << RESET << endl;
+    #endif
 }
 
 
@@ -663,7 +694,12 @@ int main(int argc, char * argv[]){
 
   RRAM.parse();
   RRAM.free_memory();
-  RRAM.show_stats();
+  #ifdef DEBUG
+    RRAM.show_stats();
+  #else
+    RRAM.show_csv(); //prints stats in csv format 
+    //total energy, average energy, average power, total latency, average latency
+  #endif
 
   return 0; 
 }

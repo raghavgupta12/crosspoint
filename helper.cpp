@@ -32,5 +32,14 @@ void RRAMspec::show_stats(void){
   requestStats.print_stats();
   
 }
+
+void stats::print_csv(void){
+  cout << total_energy << "," << average_energy << "," << average_power << "," << total_latency << "," << average_latency;
+  cout << endl;
+}
+
+void RRAMspec::show_csv(void){
+  requestStats.print_csv();
+}
                  
 

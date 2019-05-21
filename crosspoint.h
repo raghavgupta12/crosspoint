@@ -20,13 +20,13 @@ using namespace std;
 
 //Default values
 
-#define DEBUG 
+//#define DEBUG 
 
 #define DATA_SIZE        16
 
 #define NUM_BANKS        3
-#define NUM_ROWS         5
-#define NUM_COLS         5
+#define NUM_ROWS         256
+#define NUM_COLS         256
 
 #define RD_PWR           1
 #define RD_LAT           5
@@ -69,6 +69,7 @@ class stats{
   void init_values(void);
   void update_stats(float, float, float);
   void print_stats(void);
+  void print_csv(void);
 }; 
 
 
@@ -124,6 +125,8 @@ class RRAMspec {
 
   
   void show_stats               (void);
+
+  void show_csv                (void);
   
   int verify_readwrite_request  (requestType, int,  int, int);
   /*                             requestType, bank, row, col*/
