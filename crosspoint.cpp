@@ -129,36 +129,42 @@ float calculate_request_energy(requestType request, granSel sel, float requestTi
 
   float requestEnergy = 0;
   
-  if (request == READ){
+  if (request == READ){ // have to add 64* at the front of row/col r/w for parallel version
     if(sel == ROW) {
-      requestEnergy  = numCols * ((rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1)));
+      requestEnergy  = ((numCols * rdPwr * requestTime)  + (rdHalfSel * requestTime * numCols * (numRows-1)));
     }
     else if(sel == COL) {
-      requestEnergy  = numRows * ((rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1)));
+      requestEnergy  = ((numRows * rdPwr * requestTime)  + (rdHalfSel * requestTime * numRows * (numCols-1)));
     }
-    else {
-      requestEnergy  = (rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1));
+    else if (sel == CELL) { //64 single cell operations in parallel
+      requestEnergy  = 64 * ((rdPwr * requestTime)  + (rdHalfSel * requestTime * (numRows-1 + numCols-1)));
+    }
+    else { //read one matrix element (64 bits)
+      requestEnergy  = (64 * rdPwr * requestTime)  + (64 * rdHalfSel * requestTime * (numRows-1)) + (rdHalfSel * requestTime * (numCols-64));
     }
   }
   else if (request == WRITE){
     if(sel == ROW) {
-      requestEnergy  = numCols * ((wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1)));
+      requestEnergy  = ((numCols * wrPwr * requestTime)  + (wrHalfSel * requestTime * numCols * (numRows-1)));
     }
     else if(sel == COL) {
-      requestEnergy  = numRows * ((wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1)));
+      requestEnergy  = ((numRows * wrPwr * requestTime)  + (wrHalfSel * requestTime * numRows * (numCols-1)));
+    }
+    else if (sel == CELL) { //64 single cell operations in parallel
+      requestEnergy  = 64 * ((wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1)));
     }
     else {
-      requestEnergy  = (wrPwr * requestTime)  + (wrHalfSel * requestTime * (numRows-1 + numCols-1));
+      requestEnergy  = (64 * wrPwr * requestTime)  + (64 * wrHalfSel * requestTime * (numRows-1)) + (wrHalfSel * requestTime * (numCols-64));
     }
   }
-  else if (request == NOT){
+  else if (request == NOT){ //TODO fix not/col with granularity settings
     if(sel == ROW) {
       requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols * (numRows-2)));
     }
     else if(sel == COL) {
       requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows * (numCols-2)));
     }
-    else if(sel == CELL_SAMEROW) {
+    else if(sel == CELL) {
       requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols-2 + 2*(numRows-2)));
     }
     else { //sel == CELL_SAMECOL
@@ -213,8 +219,18 @@ int RRAMspec::service_readwrite_request(requestType request, granSel sel, int ba
   else
     return -1; //invalid request
 
-    
-  requestTime   = (request == READ) ? rdLat : wrLat;
+  if(request == READ) {
+    if(sel == ROW) requestTime = RD_ROW_LAT;
+    else if(sel == COL) requestTime = RD_COL_LAT;
+    else requestTime = rdLat;
+  }  
+  if(request == WRITE) {
+    if(sel == ROW) requestTime = WR_ROW_LAT;
+    else if(sel == COL) requestTime = WR_COL_LAT;
+    else requestTime = wrLat;
+  }
+  if(request == NOT) requestTime = notLat;
+  if(request == OR) requestTime = orLat;
   requestEnergy = calculate_request_energy(request, sel, requestTime, numRows, numCols, 
           rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
 
@@ -281,7 +297,7 @@ int RRAMspec::service_not_request(requestType request, granSel sel, int bank, in
       }
     }
   }
-  else if(sel == CELL_SAMEROW) {
+  else if(sel == CELL) {//TODO fix
     for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
         memory[bank][rowOne][colOne].data[fourbytes] = ~memory[bank][rowOne][colOne].data[fourbytes];
         memory[bank][rowOne][colTwo].data[fourbytes] = ~memory[bank][rowOne][colTwo].data[fourbytes];
@@ -440,14 +456,14 @@ int RRAMspec::verify_not_request(requestType request, granSel sel, int bank, int
     if(colOne == colTwo)
       return -1;
   }
-  if(sel == CELL_SAMEROW) {
+  if(sel == CELL) {
     if(colOne == colTwo) 
       return -1;
   }
-  if(sel == CELL_SAMECOL) {
+  /*if(sel == CELL_SAMECOL) {
     if(rowOne == rowTwo)
       return -1;
-  }
+  }*/
 
   return 0;
 }
@@ -483,12 +499,12 @@ int RRAMspec::verify_or_request(requestType request, granSel sel, int bank, int 
     if(colOne == colTwo)
       return -1;
   }
-  if(sel == CELL_SAMEROW) {
+  if(sel == CELL) {
     return -1;
   }
-  if(sel == CELL_SAMECOL) {
+  /*if(sel == CELL_SAMECOL) {
     return -1;
-  }
+  }*/
   return 0;
 }
 
@@ -572,9 +588,9 @@ int RRAMspec::parse(){
     else if(select == 1)
       SEL = COL;
     else if(select == 2)
-      SEL = CELL_SAMEROW;
+      SEL = CELL;
     else if(select == 3)
-      SEL = CELL_SAMECOL;
+      SEL = ELEMENT;
 
 
     

@@ -28,14 +28,22 @@ using namespace std;
 #define NUM_ROWS         256
 #define NUM_COLS         256
 
-#define RD_PWR           1
+#define RD_PWR           25
 #define RD_LAT           5
-#define RD_HALF_SEL_PWR  0.2
+#define RD_ROW_LAT       5
+#define RD_COL_LAT       5
+#define RD_HALF_SEL_PWR  0.25
+#define RD_ROW_PWR       200
+#define RD_COL_PWR       200
 
-#define WR_PWR           3
+#define WR_PWR           100
 #define WR_SET_BIT_PWR   0.001
 #define WR_LAT           5
-#define WR_HALF_SEL_PWR  0.2
+#define WR_ROW_LAT       5
+#define WR_COL_LAT       5
+#define WR_HALF_SEL_PWR  1
+#define WR_ROW_PWR       600
+#define WR_COL_PWR       600
 
 #define NOT_PWR          2
 #define NOT_LAT          5
@@ -49,7 +57,7 @@ using namespace std;
           
 
 enum requestType   {READ, WRITE, NOT, OR};
-enum granSel  {ROW, COL, CELL_SAMEROW, CELL_SAMECOL};
+enum granSel  {ROW, COL, CELL, ELEMENT};
 
 const string requestString[] = {"READ", "WRITE", "NOT", "OR"};
 
