@@ -189,13 +189,13 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 			//printf("i = %d, oflow1 = %d\n", i, oflow1);
 			if(oflow1 < colOne) {
 				read(0, i, 0, 0, fp); //read row i in matrix a
-				oflow1 = oflow1 + numCols;
+				oflow1 = oflow1 + (numCols/64);
 				//printf("read A, oflow1 = %d\n", oflow1);
 			}
 			oflow1 = oflow1 - colOne;
 			if(oflow1 < 0) {
 				read(0, i, 0, 0, fp); //issue extra read if necessary (row size < matrix row size)
-				oflow1 = oflow1 + numCols;
+				oflow1 = oflow1 + (numCols/64);
 				//printf("read A, oflow1 = %d\n", oflow1);
 			}
 		}
@@ -203,26 +203,26 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 			//printf("j = %d, oflow2 = %d\n", j, oflow2);
 			if(oflow2 < rowTwo){
 				read(1, 0, j, 1, fp); //read col j in matrix b
-				oflow2 = oflow2 + numRows;
+				oflow2 = oflow2 + (numRows/64);
 				//printf("read B, oflow2 = %d\n", oflow2);
 			}
 			oflow2 = oflow2 - rowTwo;
 			if(oflow2 < 0){
 				read(1, 0, j, 1, fp); //issue extra read if necessary (col size < matrix col size)
-				oflow2 = oflow2 + numRows;
+				oflow2 = oflow2 + (numRows/64);
 				//printf("read B, oflow2 = %d\n", oflow2);
 			}
 		}
 		for(int k = 0; k < rowOne; k++) {
 			if(oflow3 < colTwo){
 				write(2, k, 0, 0, fp); //write row k in matrix c
-				oflow3 = oflow3 + numCols;
+				oflow3 = oflow3 + (numCols/64);
 				//printf("write C, oflow3 = %d\n", oflow3);
 			}
 			oflow3 = oflow3 - colTwo;
 			if(oflow3 < 0){
 				write(2, k, 0, 0, fp); //issue extra write if necessary (row size < matrix row size)
-				oflow3 = oflow3 + numCols;
+				oflow3 = oflow3 + (numCols/64);
 				//printf("write C, oflow3 = %d\n", oflow3);
 			}
 		}

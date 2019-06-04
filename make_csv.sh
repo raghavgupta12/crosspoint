@@ -34,22 +34,22 @@
 # 	done
 # done
 
-> nonpar_se.csv
-echo "array size,matrix size,total energy,avg energy,avg power,total latency,avg latency" >> nonpar_se.csv
-for arr in {7..14}
-do
-	a=$((2**$arr))
-	for((mat=1;mat<=arr-6;mat++))
-	do
-		m=$((2**$mat))
-		echo -n "$a," >> nonpar_se.csv
-		echo -n "$m," >> nonpar_se.csv
-		./mmul $m $m $m $m $a $a 0 1 &
-		wait
-		./crosspoint -f "mmultrace.bin" -r $a -c $a >> nonpar_se.csv &
-		wait
-	done
-done
+# > nonpar_se.csv
+# echo "array size,matrix size,total energy,avg energy,avg power,total latency,avg latency" >> nonpar_se.csv
+# for arr in {7..14}
+# do
+# 	a=$((2**$arr))
+# 	for((mat=1;mat<=arr-6;mat++))
+# 	do
+# 		m=$((2**$mat))
+# 		echo -n "$a," >> nonpar_se.csv
+# 		echo -n "$m," >> nonpar_se.csv
+# 		./mmul $m $m $m $m $a $a 0 1 &
+# 		wait
+# 		./crosspoint -f "mmultrace.bin" -r $a -c $a >> nonpar_se.csv &
+# 		wait
+# 	done
+# done
 
 > nonpar_rc.csv
 echo "array size,matrix size,total energy,avg energy,avg power,total latency,avg latency" >> nonpar_rc.csv
