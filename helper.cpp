@@ -34,7 +34,8 @@ void RRAMspec::show_stats(void){
 }
 
 void stats::print_csv(void){
-  cout << total_energy << "," << average_energy << "," << average_power << "," << total_latency << "," << average_latency;
+  cout << total_energy << "," << average_energy << "," << average_power << ",";
+  cout << total_latency << "," << average_latency << "," << count << "," << halfSelCount << "," << fullSelCount;
   cout << endl;
 }
 

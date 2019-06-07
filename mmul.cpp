@@ -1,8 +1,5 @@
 #include "crosspoint.h"
 
-/*#define numRows         256
-#define numCols         256*/
-
 //add a read to trace
 int read(unsigned long long bank, int row, int col, int type, FILE * fp) {
 	//type = 0 -> row, type = 1 -> col, type = 2 -> cell, type = 3 -> element
@@ -119,7 +116,7 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 			printf("write C, oflow3 = %d\n", oflow3);
 		}
 	}*/
-	if((par == 1)&&(gran == 0)){ //row/col operations in parallel
+	if((par != 0)&&(gran == 0)){ //row/col operations in parallel
 		for(int i = 0; i < rowOne; i++) {
 			//printf("i = %d, oflow1 = %d\n", i, oflow1);
 			if(oflow1 < colOne) {
@@ -128,7 +125,7 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 				//printf("read A, oflow1 = %d\n", oflow1);
 			}
 			oflow1 = oflow1 - colOne;
-			if(oflow1 < 0) {
+			while(oflow1 < 0) {
 				read(0, i, 0, 0, fp); //issue extra read if necessary (row size < matrix row size)
 				oflow1 = oflow1 + numCols;
 				//printf("read A, oflow1 = %d\n", oflow1);
@@ -142,7 +139,7 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 				//printf("read B, oflow2 = %d\n", oflow2);
 			}
 			oflow2 = oflow2 - rowTwo;
-			if(oflow2 < 0){
+			while(oflow2 < 0){
 				read(1, 0, j, 1, fp); //issue extra read if necessary (col size < matrix col size)
 				oflow2 = oflow2 + numRows;
 				//printf("read B, oflow2 = %d\n", oflow2);
@@ -155,14 +152,14 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 				//printf("write C, oflow3 = %d\n", oflow3);
 			}
 			oflow3 = oflow3 - colTwo;
-			if(oflow3 < 0){
+			while(oflow3 < 0){
 				write(2, k, 0, 0, fp); //issue extra write if necessary (row size < matrix row size)
 				oflow3 = oflow3 + numCols;
 				//printf("write C, oflow3 = %d\n", oflow3);
 			}
 		}
 	}
-	else if ((par == 1) && (gran == 1)){ //single element operations in parallel
+	else if ((par != 0) && (gran == 1)){ //single element operations in parallel
 		for(int i = 0; i < rowOne; i++) {
 			for(int k = 0; k < colOne; k++) {
 				//printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
@@ -193,10 +190,10 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 				//printf("read A, oflow1 = %d\n", oflow1);
 			}
 			oflow1 = oflow1 - colOne;
-			if(oflow1 < 0) {
+			while(oflow1 < 0) {
 				read(0, i, 0, 0, fp); //issue extra read if necessary (row size < matrix row size)
 				oflow1 = oflow1 + (numCols/64);
-				//printf("read A, oflow1 = %d\n", oflow1);
+				//printf("extra read A, oflow1 = %d\n", oflow1);
 			}
 		}
 		for(int j = 0; j < colTwo; j++) {
@@ -207,10 +204,10 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 				//printf("read B, oflow2 = %d\n", oflow2);
 			}
 			oflow2 = oflow2 - rowTwo;
-			if(oflow2 < 0){
+			while(oflow2 < 0){
 				read(1, 0, j, 1, fp); //issue extra read if necessary (col size < matrix col size)
 				oflow2 = oflow2 + (numRows/64);
-				//printf("read B, oflow2 = %d\n", oflow2);
+				//printf("extra read B, oflow2 = %d\n", oflow2);
 			}
 		}
 		for(int k = 0; k < rowOne; k++) {
@@ -220,10 +217,10 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 				//printf("write C, oflow3 = %d\n", oflow3);
 			}
 			oflow3 = oflow3 - colTwo;
-			if(oflow3 < 0){
+			while(oflow3 < 0){
 				write(2, k, 0, 0, fp); //issue extra write if necessary (row size < matrix row size)
 				oflow3 = oflow3 + (numCols/64);
-				//printf("write C, oflow3 = %d\n", oflow3);
+				//printf("extra write C, oflow3 = %d\n", oflow3);
 			}
 		}
 	}
@@ -266,6 +263,12 @@ int main(int argc, char * argv[]) {
 	int gran = atoi(argv[8]);
 	if(colOne != rowTwo)
 		return 0;
+
+	/*float rt = 0.5 * numRows * 2;
+  	float ct = 20 * numRows;
+  	float lat = (rt*ct/2)*(50000 + rt/3)/(1000000*(50000 + rt));
+  	printf("rt %f ct %f lat %f\n", rt, ct, lat);*/
+
 	FILE * fp;
 	fp = fopen("mmultrace.bin", "wb");
 	matrix(rowOne, colOne, rowTwo, colTwo, numRows, numCols, par, gran, fp);

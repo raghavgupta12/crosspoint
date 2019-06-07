@@ -71,11 +71,16 @@ class stats{
   float average_power;
   float total_latency;
   float average_latency;
+  float halfsel_energy;
+  float fullsel_energy;
 
   float count;
+  long long int halfSelCount;
+  int fullSelCount;
   
   void init_values(void);
   void update_stats(float, float, float);
+  void update_sel_count(int, requestType, granSel, int, int, float, float, float, float);
   void print_stats(void);
   void print_csv(void);
 }; 
@@ -110,6 +115,7 @@ class RRAMspec {
 
  public: 
   int numBanks, numRows, numCols;
+  int par;
   float rdPwr, rdLat, rdHalfSel;
   float wrPwr, wrSetPwr, wrLat, wrHalfSel;
   float notPwr, notLat, notHalfSel;
