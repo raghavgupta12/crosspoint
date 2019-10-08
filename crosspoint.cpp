@@ -13,6 +13,8 @@ void stats::init_values(){
   count           = 0;
   halfSelCount    = 0;
   fullSelCount    = 0;
+  halfsel_energy  = 0;
+  fullsel_energy  = 0;
 }
 
 
@@ -30,84 +32,115 @@ void stats::update_stats (float energy, float power, float latency){
 }
 
 void stats::update_sel_count (int par, requestType request, granSel sel, int numRows, int numCols,
-                              float rdPwr, float rdHalfSel, float wrPwr, float wrHalfSel){
-  if (request == READ){
-    if(par == 0) { //non parallel
-      if(sel == ROW) {
-        fullSelCount += numCols;
-        halfSelCount += numCols * (numRows-1);
-        halfsel_energy += (rdHalfSel * numCols * (numRows-1));
-        fullsel_energy += (numCols * rdPwr);
-        //requestEnergy  = ((numCols * rdPwr)  + (rdHalfSel * numCols * (numRows-1)));
+                              float rdPwr, float rdHalfSel, float wrPwr, float wrHalfSel, bool DRAM){
+  if(DRAM == false) {
+    if (request == READ){
+      if(par == 0) { //non parallel
+        if(sel == ROW) {
+          fullSelCount += numCols;
+          halfSelCount += (float)numCols * (float)(numRows-1);
+          halfsel_energy += (rdHalfSel * numCols * (numRows-1));
+          fullsel_energy += (numCols * rdPwr);
+        }
+        else if(sel == COL) {
+          fullSelCount += numRows;
+          halfSelCount += (float)numRows * (float)(numCols-1);
+          halfsel_energy += (rdHalfSel * numRows * (numCols-1));
+          fullsel_energy += (numRows * rdPwr);
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          fullSelCount += 64;
+          halfSelCount += 64 * (numRows-1 + numCols-1);
+          halfsel_energy += (rdHalfSel * 64 * (numRows-1 + numCols-1));
+          fullsel_energy += rdPwr * 64;
+        }
+        else { //read one matrix element (64 bits)
+          fullSelCount += 64;
+          halfSelCount += 64 * (numRows-1) + (numCols-64);
+          halfsel_energy += (rdHalfSel * (64 * (numRows-1) + (numCols-64)));
+          fullsel_energy += rdPwr * 64;
+        }
       }
-      else if(sel == COL) {
-        fullSelCount += numRows;
-        halfSelCount += numRows * (numCols-1);
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1 + numCols-1);
-      }
-      else { //read one matrix element (64 bits)
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1) + (numCols-64);
-      }
-    }
-    else { //par arrays in lockstep
-      if(sel == ROW) {
-        fullSelCount += par * numCols;
-        halfSelCount += par * numCols * (numRows-1);
-      }
-      else if(sel == COL) {
-        fullSelCount += par * numRows;
-        halfSelCount += par * numRows * (numCols-1);
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1 + numCols-1);
-      }
-      else { //read one matrix element (64 bits)
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1) + (numCols-64);
-      }
-    }
-  }
-  else if (request == WRITE){
-    if(par == 0) { //non parallel
-      if(sel == ROW) { 
-        fullSelCount += numCols;
-        halfSelCount += numCols * (numRows-1);
-        //requestEnergy  = ((numCols * rdPwr)  + (rdHalfSel * numCols * (numRows-1)));
-      }
-      else if(sel == COL) {
-        fullSelCount += numRows;
-        halfSelCount += numRows * (numCols-1);
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1 + numCols-1);
-      }
-      else { //read one matrix element (64 bits)
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1) + (numCols-64);
+      else { //par arrays in lockstep
+        if(sel == ROW) {
+          fullSelCount += par * numCols;
+          halfSelCount += par * numCols * (numRows-1);
+          halfsel_energy += rdHalfSel * par * numCols * (numRows-1);
+          fullsel_energy += rdPwr * par * numCols;
+        }
+        else if(sel == COL) {
+          fullSelCount += par * numRows;
+          halfSelCount += par * numRows * (numCols-1);
+          halfsel_energy += rdHalfSel * par * numRows * (numCols-1);
+          fullsel_energy += rdPwr * par * numRows;
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          fullSelCount += par;
+          halfSelCount += par * (numRows-1 + numCols-1);
+          halfsel_energy += rdHalfSel * par * (numRows-1 + numCols-1);
+          fullsel_energy += rdPwr * par;
+        }
+        else { //read one matrix element (64 bits)
+          fullSelCount += 64;
+          halfSelCount += 64 * (numRows-1) + (numCols-64);
+          halfsel_energy += rdHalfSel * (64 * (numRows-1) + (numCols-64));
+          fullsel_energy += rdPwr * 64;
+        }
       }
     }
-    else { // par arrays in lockstep
-      if(sel == ROW) {
-        fullSelCount += par * numCols;
-        halfSelCount += par * numCols * (numRows-1);
+    else if (request == WRITE){
+      if(par == 0) { //non parallel
+        if(sel == ROW) { 
+          fullSelCount += numCols;
+          halfSelCount += numCols * (numRows-1);
+          halfsel_energy += (wrHalfSel * numCols * (numRows-1));
+          fullsel_energy += (numCols * wrPwr);
+          //requestEnergy  = ((numCols * rdPwr)  + (rdHalfSel * numCols * (numRows-1)));
+        }
+        else if(sel == COL) {
+          fullSelCount += numRows;
+          halfSelCount += numRows * (numCols-1);
+          halfsel_energy += (wrHalfSel * numRows * (numCols-1));
+          fullsel_energy += (numRows * wrPwr);
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          fullSelCount += par;
+          halfSelCount += par * (numRows-1 + numCols-1);
+          halfsel_energy += (wrHalfSel * par * (numRows-1 + numCols-1));
+          fullsel_energy += wrPwr * par;
+        }
+        else { //read one matrix element (64 bits)
+          fullSelCount += 64;
+          halfSelCount += 64 * (numRows-1) + (numCols-64);
+          halfsel_energy += (wrHalfSel * (64 * (numRows-1) + (numCols-64)));
+          fullsel_energy += wrPwr * 64;
+        }
       }
-      else if(sel == COL) {
-        fullSelCount += par * numRows;
-        halfSelCount += par * numRows * (numCols-1);
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1 + numCols-1);
-      }
-      else { //read one matrix element (64 bits)
-        fullSelCount += 64;
-        halfSelCount += 64 * (numRows-1) + (numCols-64);
+      else { // par arrays in lockstep
+        if(sel == ROW) {
+          fullSelCount += par * numCols;
+          halfSelCount += par * numCols * (numRows-1);
+          halfsel_energy += wrHalfSel * par * numCols * (numRows-1);
+          fullsel_energy += wrPwr * par * numCols;
+        }
+        else if(sel == COL) {
+          fullSelCount += par * numRows;
+          halfSelCount += par * numRows * (numCols-1);
+          halfsel_energy += wrHalfSel * par * numRows * (numCols-1);
+          fullsel_energy += wrPwr * par * numRows;
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          fullSelCount += 64;
+          halfSelCount += 64 * (numRows-1 + numCols-1);
+          halfsel_energy += wrHalfSel * 64 * (numRows-1 + numCols-1);
+          fullsel_energy += wrPwr * 64;
+        }
+        else { //read one matrix element (64 bits)
+          fullSelCount += 64;
+          halfSelCount += 64 * (numRows-1) + (numCols-64);
+          halfsel_energy += wrHalfSel * (64 * (numRows-1) + (numCols-64));
+          fullsel_energy += wrPwr * 64;
+        }
       }
     }
   }
@@ -151,6 +184,7 @@ void RRAMspec::set_defaults(){
   orLat       = OR_LAT;
   orHalfSel   = OR_HALF_SEL_PWR;
   traceFilename = FILENAME;
+  DRAM        = false;
   par         = 0;
 }
 
@@ -158,14 +192,14 @@ void RRAMspec::set_defaults(){
 /* Init function for RRAM class */
 void RRAMspec::set_values(){
   
-  int bank, row, col;
+  //int bank, row, col;
 
   requestTime   = 0;
   requestPower  = 0;
   requestEnergy = 0;
   
   /* Init Memory */
-  memory = (RRAMdata ***) malloc(sizeof(class RRAMdata **) * numBanks);
+  /*memory = (RRAMdata ***) malloc(sizeof(class RRAMdata **) * numBanks);
   
   for (bank = 0; bank < numBanks; bank++){
     memory[bank] = (RRAMdata **) malloc(sizeof(class RRAMdata *) * numRows);
@@ -183,7 +217,7 @@ void RRAMspec::set_values(){
         memory[bank][row][col].init_values();
       }
     }
-  }
+  }*/
   
   requestStats.init_values();
 
@@ -211,90 +245,113 @@ void RRAMspec::free_memory(void){
 
 
 float calculate_request_energy(int par, requestType request, granSel sel, float requestTime, int numRows, int numCols, 
-          float rdPwr, float rdHalfSel, float wrPwr, float wrHalfSel, float notPwr, float notHalfSel, float orPwr, float orHalfSel){
+          float rdPwr, float rdHalfSel, float wrPwr, float wrHalfSel, float notPwr, float notHalfSel, float orPwr, float orHalfSel,
+          bool DRAM){
 
   float requestEnergy = 0;
-  
-  if (request == READ){ // have to add 64* at the front of row/col r/w for parallel version
-    if(par == 0) {
-      if(sel == ROW) {
-        requestEnergy  = ((numCols * rdPwr)  + (rdHalfSel * numCols * (numRows-1)));
-      }
-      else if(sel == COL) {
-        requestEnergy  = ((numRows * rdPwr)  + (rdHalfSel * numRows * (numCols-1)));
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        requestEnergy  = 64 * ((rdPwr)  + (rdHalfSel * (numRows-1 + numCols-1)));
-      }
-      else { //read one matrix element (64 bits)
-        requestEnergy  = (64 * rdPwr )  + (64 * rdHalfSel * (numRows-1)) + (rdHalfSel * (numCols-64));
-      }
-    }
-    else {
-      if(sel == ROW) {
-        requestEnergy  = par * ((numCols * rdPwr)  + (rdHalfSel * numCols * (numRows-1)));
-      }
-      else if(sel == COL) {
-        requestEnergy  = par * ((numRows * rdPwr)  + (rdHalfSel * numRows * (numCols-1)));
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        requestEnergy  = 64 * ((rdPwr)  + (rdHalfSel * (numRows-1 + numCols-1)));
-      }
-      else { //read one matrix element (64 bits)
-        requestEnergy  = (64 * rdPwr )  + (64 * rdHalfSel * (numRows-1)) + (rdHalfSel * (numCols-64));
-      }
-    }
-  }
-  else if (request == WRITE){
-    if(par == 0) {
-      if(sel == ROW) {
-        requestEnergy  = ((numCols * wrPwr)  + (wrHalfSel * numCols * (numRows-1)));
-      }
-      else if(sel == COL) {
-        requestEnergy  = ((numRows * wrPwr )  + (wrHalfSel  * numRows * (numCols-1)));
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        requestEnergy  = 64 * ((wrPwr )  + (wrHalfSel* (numRows-1 + numCols-1)));
+  float dramRdEnergy = 46 + 2*0.125*(numRows-1);
+  float dramWrEnergy = 18 + 2*.17*(numRows-1);
+
+  if(DRAM == true){
+    if (request == READ){
+      if(par == 0) {
+        requestEnergy = dramRdEnergy;
       }
       else {
-        requestEnergy  = (64 * wrPwr )  + (64 * wrHalfSel * (numRows-1)) + (wrHalfSel * (numCols-64));
+        requestEnergy = dramRdEnergy * par;
       }
     }
-    else {
-      if(sel == ROW) {
-        requestEnergy  = par * ((numCols * wrPwr)  + (wrHalfSel * numCols * (numRows-1)));
-      }
-      else if(sel == COL) {
-        requestEnergy  = par * ((numRows * wrPwr )  + (wrHalfSel  * numRows * (numCols-1)));
-      }
-      else if (sel == CELL) { //64 single cell operations in parallel
-        requestEnergy  = 64 * ((wrPwr )  + (wrHalfSel* (numRows-1 + numCols-1)));
+    else if(request == WRITE){
+      if(par == 0) {
+        requestEnergy = dramWrEnergy;
       }
       else {
-        requestEnergy  = (64 * wrPwr )  + (64 * wrHalfSel * (numRows-1)) + (wrHalfSel * (numCols-64));
+        requestEnergy = dramWrEnergy * par;
       }
     }
   }
-  else if (request == NOT){ //TODO fix not/col with granularity settings
-    if(sel == ROW) {
-      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols * (numRows-2)));
+  else {
+    if (request == READ){
+      if(par == 0) { //non parallel
+        if(sel == ROW) {
+          requestEnergy  = ((numCols * rdPwr)  + (rdHalfSel * numCols * (numRows-1)));
+        }
+        else if(sel == COL) {
+          requestEnergy  = ((numRows * rdPwr)  + (rdHalfSel * numRows * (numCols-1)));
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          requestEnergy  = 64 * ((rdPwr)  + (rdHalfSel * (numRows-1 + numCols-1)));
+        }
+        else { //read one matrix element (64 bits)
+          requestEnergy  = (64 * rdPwr )  + (64 * rdHalfSel * (numRows-1)) + (rdHalfSel * (numCols-64));
+        }
+      }
+      else { //par arrays operating in lockstep
+        if(sel == ROW) {
+          requestEnergy  = par * ((numCols * rdPwr)  + (rdHalfSel * numCols * (numRows-1)));
+        }
+        else if(sel == COL) {
+          requestEnergy  = par * ((numRows * rdPwr)  + (rdHalfSel * numRows * (numCols-1)));
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          requestEnergy  = 64 * ((rdPwr)  + (rdHalfSel * (numRows-1 + numCols-1)));
+        }
+        else { //read one matrix element (64 bits)
+          requestEnergy  = (64 * rdPwr )  + (64 * rdHalfSel * (numRows-1)) + (rdHalfSel * (numCols-64));
+        }
+      }
     }
-    else if(sel == COL) {
-      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows * (numCols-2)));
+    else if (request == WRITE){
+      if(par == 0) {
+        if(sel == ROW) {
+          requestEnergy  = ((numCols * wrPwr)  + (wrHalfSel * numCols * (numRows-1)));
+        }
+        else if(sel == COL) {
+          requestEnergy  = ((numRows * wrPwr )  + (wrHalfSel  * numRows * (numCols-1)));
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          requestEnergy  = 64 * ((wrPwr )  + (wrHalfSel* (numRows-1 + numCols-1)));
+        }
+        else {
+          requestEnergy  = (64 * wrPwr )  + (64 * wrHalfSel * (numRows-1)) + (wrHalfSel * (numCols-64));
+        }
+      }
+      else {
+        if(sel == ROW) {
+          requestEnergy  = par * ((numCols * wrPwr)  + (wrHalfSel * numCols * (numRows-1)));
+        }
+        else if(sel == COL) {
+          requestEnergy  = par * ((numRows * wrPwr )  + (wrHalfSel  * numRows * (numCols-1)));
+        }
+        else if (sel == CELL) { //64 single cell operations in parallel
+          requestEnergy  = 64 * ((wrPwr )  + (wrHalfSel* (numRows-1 + numCols-1)));
+        }
+        else {
+          requestEnergy  = (64 * wrPwr )  + (64 * wrHalfSel * (numRows-1)) + (wrHalfSel * (numCols-64));
+        }
+      }
     }
-    else if(sel == CELL) {
-      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols-2 + 2*(numRows-2)));
+    else if (request == NOT){ //TODO fix not/col with granularity settings
+      if(sel == ROW) {
+        requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols * (numRows-2)));
+      }
+      else if(sel == COL) {
+        requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows * (numCols-2)));
+      }
+      else if(sel == CELL) {
+        requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numCols-2 + 2*(numRows-2)));
+      }
+      else { //sel == CELL_SAMECOL
+        requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows-2 + 2*(numCols-2)));
+      }
     }
-    else { //sel == CELL_SAMECOL
-      requestEnergy  = (notPwr * requestTime) + (notHalfSel * requestTime * (numRows-2 + 2*(numCols-2)));
-    }
-  }
-  else { //OR
-    if(sel == ROW) {
-      requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numCols * (numRows-2)));
-    }
-    else if(sel == COL) {
-      requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numRows * (numCols-2)));
+    else { //OR
+      if(sel == ROW) {
+        requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numCols * (numRows-2)));
+      }
+      else if(sel == COL) {
+        requestEnergy  = (orPwr * requestTime)  + (orHalfSel * requestTime * (numRows * (numCols-2)));
+      }
     }
   }
 
@@ -311,8 +368,8 @@ int RRAMspec::service_readwrite_request(requestType request, granSel sel, int ba
        return -1;
   } 
   
-  if (request == READ){ //TODO add sel casing - need to change buffer implementation & likely prints to make this work
-    /*if(sel == ROW) {
+  /*if (request == READ){ //TODO add sel casing - need to change buffer implementation & likely prints to make this work
+    if(sel == ROW) {
       for(int c = 0; c < numCols; c++) {
         for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++) {
           data[fourbytes] = memory[bank][row][c].data[fourbytes];
@@ -324,7 +381,7 @@ int RRAMspec::service_readwrite_request(requestType request, granSel sel, int ba
     }
     else {
 
-    }*/
+    }
     for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++) {
           data[fourbytes] = memory[bank][row][col].data[fourbytes];
       }
@@ -335,30 +392,37 @@ int RRAMspec::service_readwrite_request(requestType request, granSel sel, int ba
     }
   }
   else
-    return -1; //invalid request
+    return -1; //invalid request*/
 
   float rt = 0.5 * numRows * 2;
   float ct = 20 * numRows;
   float lat = (rt*ct/2)*(50000 + rt/3)/(1000000*(50000 + rt));
 
-  if(request == READ) {
-    requestTime = lat;
-  }  
-  if(request == WRITE) {
-    requestTime = lat;
+  float dramLat = 0.005*(numRows*numRows)*((50000 + (0.05*numRows/3))/(50000 + 0.05*numRows));
+
+  if(DRAM == true) {
+    requestTime = dramLat;
   }
-  if(request == NOT) requestTime = notLat;
-  if(request == OR) requestTime = orLat;
+  else {
+    if(request == READ) {
+    requestTime = lat;
+    }  
+    if(request == WRITE) {
+      requestTime = lat;
+    }
+    if(request == NOT) requestTime = notLat;
+    if(request == OR) requestTime = orLat;
+  }
 
   requestEnergy = calculate_request_energy(par, request, sel, requestTime, numRows, numCols, 
-          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
+          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel, DRAM);
 
   if (request == WRITE){
     requestEnergy += requestTime * wrSetPwr * noSetBits(data);
   }
   
   requestPower = requestEnergy/requestTime;
-  requestStats.update_sel_count(par, request, sel, numRows, numCols);
+  requestStats.update_sel_count(par, request, sel, numRows, numCols, rdPwr, rdHalfSel, wrPwr, wrHalfSel, DRAM);
   requestStats.update_stats(requestEnergy, requestPower, requestTime);
   
   /* Print Request Details */
@@ -403,7 +467,7 @@ int RRAMspec::service_not_request(requestType request, granSel sel, int bank, in
       return -1;
   }
   
-  if(sel == ROW) {
+  /*if(sel == ROW) {
     for(int c = 0; c < NUM_COLS; c++) {
       for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
         memory[bank][rowOne][c].data[fourbytes] = ~memory[bank][rowOne][c].data[fourbytes];
@@ -428,11 +492,11 @@ int RRAMspec::service_not_request(requestType request, granSel sel, int bank, in
         memory[bank][rowOne][colOne].data[fourbytes] = ~memory[bank][rowOne][colOne].data[fourbytes];
         memory[bank][rowTwo][colOne].data[fourbytes] = ~memory[bank][rowTwo][colOne].data[fourbytes];
     }
-  }
+  }*/
  
   requestTime   = notLat;
   requestEnergy = calculate_request_energy(par, request, sel, requestTime, numRows, numCols, 
-          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
+          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel, DRAM);
 
   requestPower = requestEnergy/requestTime;
   requestStats.update_stats(requestEnergy, requestPower, requestTime);
@@ -477,7 +541,7 @@ int RRAMspec::service_or_request(requestType request, granSel sel, int bank, int
     return -1;
   }
 
-  if(sel == ROW) {
+  /*if(sel == ROW) {
     for(int c = 0; c < numCols; c++) {
       for(int fourbytes = 0; fourbytes < DATA_SIZE; fourbytes++){
         memory[bank][rowOne][c].data[fourbytes] =
@@ -495,11 +559,11 @@ int RRAMspec::service_or_request(requestType request, granSel sel, int bank, int
   }
   else {
     return -1;
-  }
+  }*/
 
   requestTime   = orLat;
   requestEnergy = calculate_request_energy(par, request, sel, requestTime, numRows, numCols, 
-          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel);
+          rdPwr, rdHalfSel, wrPwr, wrHalfSel, notPwr, notHalfSel, orPwr, orHalfSel, DRAM);
 
   requestPower = requestEnergy/requestTime;
   requestStats.update_stats(requestEnergy, requestPower, requestTime);
@@ -741,9 +805,9 @@ int RRAMspec::parse(){
 
 /*
  *** COMMAND LINE FORMAT ***
-  ./crosspoint -f <trace_file_name> -b <numBanks> -r <numRows> -c <numCols> -rdp <rdPwr> -rdl <rdLat> -rdh <rdHalfSel>
+  ./crosspoint -p <num par arrays> -f <trace_file_name> -b <numBanks> -r <numRows> -c <numCols> -rdp <rdPwr> -rdl <rdLat> -rdh <rdHalfSel>
                -wrp <wrPwr> -wrs <wrSetPwr>-wrl <wrLat> -wrh <wrHalfSel> -np <notPwr> -nl <notLat> -nh <notHalfSel>
-               -op <orPwr> -ol <orLat> -oh <orHalfSel>
+               -op <orPwr> -ol <orLat> -oh <orHalfSel> -d (dram flag)
 */
 void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
   for(int i = 1; i < argc; i++) {
@@ -801,6 +865,9 @@ void parse_args(int argc, char * argv[], RRAMspec &RRAM) {
     if (strcmp(argv[i], "-oh") == 0) {
         RRAM.orHalfSel = (float) atof(argv[i+1]);
     }
+    if (strcmp(argv[i], "-d") == 0) {
+        RRAM.DRAM = true;
+    }
 
   }
     #ifdef DEBUG
@@ -833,7 +900,7 @@ int main(int argc, char * argv[]){
   RRAM.set_values();
 
   RRAM.parse();
-  RRAM.free_memory();
+  //RRAM.free_memory();
   #ifdef DEBUG
     RRAM.show_stats();
   #else

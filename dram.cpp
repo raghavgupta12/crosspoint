@@ -38,19 +38,70 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
     //row/col two is matrix B
     //numrows/cols is dram array size
     //all matrices stored row-major
+    //each row fits at least one element for non-parallel
     //par is number of parallel arrays
     //if transpose = 1, tranpose matrix B,
         /*for n = 0 to N - 2
         for m = n + 1 to N - 1
             swap A(n,m) with A(m,n)*/
-    int oflow1 = 0, oflow3 = 0;
+    int oflow1 = 0, oflow2 = 0, oflow3 = 0;
     if(par == 0) {//single array, no transpose, worst case (one read per element matrix b)
+        //matrix A
+        for(int i = 0; i < rowOne; i++) {
+            for(int k = 0; k < colOne; k++) {
+                //oflow counts # of bits read, each iteration of loop is 1 element = 64 bits 
+                if(oflow1 < 64) {
+                    read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 0, fp);
+                    //printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+                    oflow1 = oflow1 + (numCols);
+                }
+                oflow1 = oflow1 - 64;
+                while(oflow1 < 0) {
+                    read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 0, fp);
+                    //printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+                    oflow1 = oflow1 + (numCols);
+                }
+            }
+        }
+        //matrix B
+        if((64*rowTwo) <= numCols) {
+            for(int j = 0; j < rowTwo; j++) {
+                for(int h = 0; h < 64; h++) {
+                    read(1, j, h, 0, fp); //number of reads is accurate, locations aren't
+                    //printf("read B %d %d\n", j, h);
+                }
+            }
+        }
+        else {
+            for(int n = 0; n < numRows; n++) {
+                read(1, n, 0, 0, fp);
+                //printf("read B %d %d\n", n, 0);
+            }
+        }
+        //matrix C
+        for(int i = 0; i < rowOne; i++) {
+            for(int j = 0; j < colTwo; j++) {
+                if(oflow3 < 64) {
+                    write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 0, fp);
+                    //printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
+                    oflow3 = oflow3 + (numCols);
+                }
+                oflow3 = oflow3 - 64;
+                while(oflow3 < 0) {
+                    write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 0, fp);
+                    //printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
+                    oflow3 = oflow3 + (numCols);
+                }
+            } 
+        }
+    }
+    else {//par parallel arrays, current assumption 64 for matrix B
         //matrix A
         for(int i = 0; i < rowOne; i++) {
             for(int k = 0; k < colOne; k++) {
                 if(oflow1 < 64) {
                     read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 0, fp);
-                    printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+                    //printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
                     oflow1 = oflow1 + (par * numCols);
                 }
                 oflow1 = oflow1 - 64;
@@ -62,9 +113,10 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
             }
         }
         //matrix B
-        for(int j = 0; j < colTwo; j++) {
+        for(int j = 0; j < rowTwo; j++) {
             for(int k = 0; k < colOne; k++) {
-                read(1, k, j, 1, fp);
+                //printf("read B %d %d\n", j, k);
+                read(1, j, k, 0, fp);
             }
         }
         //matrix C
@@ -88,9 +140,10 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 }
 
 int main(int argc, char * argv[]) {
-    if(argc != 9)
-        printf("args wrong");
+    if(argc != 9) {
+        cout << "args wrong\n";
         return 0;
+    }
     //matrix size arguments, rowone/colone for matrix A, rowtwo/coltwo for matrix B
     int rowOne = atoi(argv[1]);
     int colOne = atoi(argv[2]);

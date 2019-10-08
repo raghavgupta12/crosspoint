@@ -75,12 +75,12 @@ class stats{
   float fullsel_energy;
 
   float count;
-  long long int halfSelCount;
-  int fullSelCount;
+  float halfSelCount;
+  float fullSelCount;
   
   void init_values(void);
   void update_stats(float, float, float);
-  void update_sel_count(int, requestType, granSel, int, int, float, float, float, float);
+  void update_sel_count(int, requestType, granSel, int, int, float, float, float, float, bool);
   void print_stats(void);
   void print_csv(void);
 }; 
@@ -120,6 +120,7 @@ class RRAMspec {
   float wrPwr, wrSetPwr, wrLat, wrHalfSel;
   float notPwr, notLat, notHalfSel;
   float orPwr, orLat, orHalfSel;
+  bool DRAM;
 
   const char* traceFilename;
 

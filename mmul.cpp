@@ -75,59 +75,19 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 		}
 	}*/
 
-	//reading a row currently modeled as reading a numCols cells in parallel
 	int oflow1 = 0, oflow2 = 0, oflow3 = 0;
-	/*for(int i = 0; i < rowOne; i++) {
-		printf("i = %d, oflow1 = %d\n", i, oflow1);
-		if(oflow1 < colOne) {
-			read(0, i, 0, 0, fp); //read row i in matrix a
-			oflow1 = oflow1 + numCols;
-			printf("read A, oflow1 = %d\n", oflow1);
-		}
-		oflow1 = oflow1 - colOne;
-		if(oflow1 < 0) {
-			read(0, i, 0, 0, fp); //issue extra read if necessary (row size < matrix row size)
-			oflow1 = oflow1 + numCols;
-			printf("read A, oflow1 = %d\n", oflow1);
-		}
-		for(int j = 0; j < colTwo; j++) {
-			printf("j = %d, oflow2 = %d\n", j, oflow2);
-			if(oflow2 < rowTwo){
-				read(1, 0, j, 1, fp); //read col j in matrix b
-				oflow2 = oflow2 + numRows;
-				printf("read B, oflow2 = %d\n", oflow2);
-			}
-			oflow2 = oflow2 - rowTwo;
-			if(oflow2 < 0){
-				read(1, 0, j, 1, fp); //issue extra read if necessary (col size < matrix col size)
-				oflow2 = oflow2 + numRows;
-				printf("read B, oflow2 = %d\n", oflow2);
-			}
-		}
-		if(oflow3 < colTwo){
-			write(2, i, 0, 0, fp); //write row i in matrix c
-			oflow3 = oflow3 + numCols;
-			printf("write C, oflow3 = %d\n", oflow3);
-		}
-		oflow3 = oflow3 - colTwo;
-		if(oflow3 < 0){
-			write(2, i, 0, 0, fp); //issue extra write if necessary (row size < matrix row size)
-			oflow3 = oflow3 + numCols;
-			printf("write C, oflow3 = %d\n", oflow3);
-		}
-	}*/
 	if((par != 0)&&(gran == 0)){ //row/col operations in parallel
-		for(int i = 0; i < rowOne; i++) {
+		/*for(int i = 0; i < rowOne; i++) {
 			//printf("i = %d, oflow1 = %d\n", i, oflow1);
 			if(oflow1 < colOne) {
 				read(0, i, 0, 0, fp); //read row i in matrix a
-				oflow1 = oflow1 + numCols;
+				oflow1 = oflow1 + (par*numCols);
 				//printf("read A, oflow1 = %d\n", oflow1);
 			}
-			oflow1 = oflow1 - colOne;
+			oflow1 = oflow1 - (colOne*64);
 			while(oflow1 < 0) {
 				read(0, i, 0, 0, fp); //issue extra read if necessary (row size < matrix row size)
-				oflow1 = oflow1 + numCols;
+				oflow1 = oflow1 + (par*numCols);
 				//printf("read A, oflow1 = %d\n", oflow1);
 			}
 		}
@@ -135,53 +95,153 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 			//printf("j = %d, oflow2 = %d\n", j, oflow2);
 			if(oflow2 < rowTwo){
 				read(1, 0, j, 1, fp); //read col j in matrix b
-				oflow2 = oflow2 + numRows;
+				oflow2 = oflow2 + (par*numRows);
 				//printf("read B, oflow2 = %d\n", oflow2);
 			}
-			oflow2 = oflow2 - rowTwo;
+			oflow2 = oflow2 - (rowTwo*64);
 			while(oflow2 < 0){
 				read(1, 0, j, 1, fp); //issue extra read if necessary (col size < matrix col size)
-				oflow2 = oflow2 + numRows;
+				oflow2 = oflow2 + (par*numRows);
 				//printf("read B, oflow2 = %d\n", oflow2);
 			}
 		}
 		for(int k = 0; k < rowOne; k++) {
 			if(oflow3 < colTwo){
 				write(2, k, 0, 0, fp); //write row k in matrix c
-				oflow3 = oflow3 + numCols;
+				oflow3 = oflow3 + (par*numCols);
 				//printf("write C, oflow3 = %d\n", oflow3);
 			}
-			oflow3 = oflow3 - colTwo;
+			oflow3 = oflow3 - (colTwo*64);
 			while(oflow3 < 0){
 				write(2, k, 0, 0, fp); //issue extra write if necessary (row size < matrix row size)
-				oflow3 = oflow3 + numCols;
+				oflow3 = oflow3 + (par*numCols);
 				//printf("write C, oflow3 = %d\n", oflow3);
 			}
+		}*/
+
+		//matrix A
+		for(int i = 0; i < rowOne; i++) {
+			for(int k = 0; k < colOne; k++) {
+				if(oflow1 < 64) {
+					read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 0, fp);
+					//printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+					oflow1 = oflow1 + (par * numCols);
+				}
+				oflow1 = oflow1 - 64;
+				while(oflow1 < 0) {
+					read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 0, fp);
+					//printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+					oflow1 = oflow1 + (par * numCols);
+				}
+			}
+		}
+		//matrix B
+		for(int j = 0; j < colTwo; j++) {
+			for(int k = 0; k < colOne; k++) {
+				if(oflow2 < 64) {
+					read(1, ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows), 1, fp);
+					//printf("read B %d %d\n", ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows));
+					oflow2 = oflow2 + (par * numRows);
+				}
+				oflow2 = oflow2 - 64;
+				while(oflow2 < 0) {
+					read(1, ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows), 1, fp);
+					//printf("read B %d %d\n", ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows));
+					oflow2 = oflow2 + (par * numRows);
+				}
+			}
+		}
+		//matrix C
+		for(int i = 0; i < rowOne; i++) {
+			for(int j = 0; j < colTwo; j++) {
+				if(oflow3 < 64) {
+					write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 0, fp);
+					//printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
+					oflow3 = oflow3 + (par * numCols);
+				}
+				oflow3 = oflow3 - 64;
+				while(oflow3 < 0) {
+					write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 0, fp);
+					//printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
+					oflow3 = oflow3 + (par * numCols);
+				}
+			} 
 		}
 	}
 	else if ((par != 0) && (gran == 1)){ //single element operations in parallel
+		// for(int i = 0; i < rowOne; i++) {
+		// 	for(int k = 0; k < colOne; k++) {
+		// 		//printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+		// 		read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 2, fp);
+		// 	}
+		// }
+
+		// for(int j = 0; j < colTwo; j++) {
+		// 	for(int k = 0; k < colOne; k++) {
+		// 		//printf("read B %d %d\n", ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows));
+		// 		read(1, ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows), 2, fp);
+		// 	}
+		// }
+
+		// for(int i = 0; i < rowOne; i++) {
+		// 	for(int j = 0; j < colTwo; j++) {
+		// 		//printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
+		// 		write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 2, fp);
+		// 	} 
+		// }
+
+		//single element in parallel
+		//matrix A
 		for(int i = 0; i < rowOne; i++) {
 			for(int k = 0; k < colOne; k++) {
-				//printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
-				read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 2, fp);
+				if(oflow1 < 64) {
+					read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 2, fp);
+					//printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+					oflow1 = oflow1 + par;
+				}
+				oflow1 = oflow1 - 64;
+				while(oflow1 < 0) {
+					read(0, ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows), 2, fp);
+					//printf("read A %d %d\n", ((rowOne*i + k)/numRows), ((rowOne*i + k)%numRows));
+					oflow1 = oflow1 + par;
+				}
 			}
 		}
-
+		//matrix B
 		for(int j = 0; j < colTwo; j++) {
 			for(int k = 0; k < colOne; k++) {
-				//printf("read B %d %d\n", ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows));
-				read(1, ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows), 2, fp);
+				if(oflow2 < 64) {
+					read(1, ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows), 2, fp);
+					//printf("read B %d %d\n", ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows));
+					oflow2 = oflow2 + par;
+				}
+				oflow2 = oflow2 - 64;
+				while(oflow2 < 0) {
+					read(1, ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows), 2, fp);
+					//printf("read B %d %d\n", ((rowTwo*k + j)/numRows), ((rowTwo*k + j)%numRows));
+					oflow2 = oflow2 + par;
+				}
 			}
 		}
-
+		//matrix C
 		for(int i = 0; i < rowOne; i++) {
 			for(int j = 0; j < colTwo; j++) {
-				//printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
-				write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 2, fp);
-			}
+				if(oflow3 < 64) {
+					write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 2, fp);
+					//printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
+					oflow3 = oflow3 + par;
+				}
+				oflow3 = oflow3 - 64;
+				while(oflow3 < 0) {
+					write(2, ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows), 2, fp);
+					//printf("write C %d %d\n", ((rowOne*i + j)/numRows), ((rowOne*i + j)%numRows));
+					oflow3 = oflow3 + par;
+				}
+			} 
 		}
 	}
 	else if((par == 0) && (gran == 0)) {//non parallel row/col operations
+		//TODO fix this
 		for(int i = 0; i < rowOne; i++) {
 			//printf("i = %d, oflow1 = %d\n", i, oflow1);
 			if(oflow1 < colOne) {
@@ -250,8 +310,10 @@ int matrix(int rowOne, int colOne, int rowTwo, int colTwo, int numRows, int numC
 }
 
 int main(int argc, char * argv[]) {
-	if(argc != 9)
+	if(argc != 9) {
+		cout << "args wrong\n";
 		return 0;
+	}
 	//matrix size arguments, rowone/colone for matrix A, rowtwo/coltwo for matrix B
 	int rowOne = atoi(argv[1]);
 	int colOne = atoi(argv[2]);
@@ -275,3 +337,4 @@ int main(int argc, char * argv[]) {
 	fclose(fp);
 	return 1;
 }
+

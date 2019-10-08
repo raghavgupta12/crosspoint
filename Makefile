@@ -14,6 +14,9 @@ trace: make_sample_trace.cpp
 mmul: mmul.cpp
 	$(CC) $(LFLAGS) mmul.cpp -o mmul
 
+dram: dram.cpp
+	$(CC) $(LFLAGS) dram.cpp -o dram
+
 clean:
 	rm -rf crosspoint trace trace.bin *~ 
 
