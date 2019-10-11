@@ -246,7 +246,10 @@ float RRAMspec::calculate_peripheral_energy(requestType request, requestGranular
   float energy_TIA = TIAEnergy;
 
   //decoder
-  float energy_Decoder = (0.5/1000)*numRows + 0.05;
+  float energy_decoder;
+  if(request == READ) energy_decoder = (0.5/1000)*numCols + 0.05;
+  else if(request == WRITE) energy_decoder = (0.5/1000)*numRows + 0.05;
+  else energy_decoder = 0;
 
   //wire resistivity
   float energy_wire;
@@ -264,13 +267,32 @@ float RRAMspec::calculate_peripheral_energy(requestType request, requestGranular
   }
   else energy_wire = 0; //model for PIM ops not known
 
-  return energy_TIA + energy_Decoder + energy_wire;
+  return energy_TIA + energy_decoder + energy_wire;
 }
 
 //Calculate total latency incurred by peripheral circuitry and wire delay for a request
 float RRAMspec::calculate_peripheral_latency(requestType request, requestGranularity gran){
+  float totalLat;
+  //TIA
+  float lat_TIA = TIALat;
 
-  return 0;
+  //Decoder
+  float lat_decoder;
+  if(gran == CELL) lat_decoder = decoderLat * numRows + 0.1;
+  else if(gran == ROW) lat_decoder = decoderLat * numCols + 0.1;
+  else if (gran == COL) lat_decoder = decoderLat * numRows + 0.1;
+  else lat_decoder = 0;
+  
+  //Wire Delay, TODO update function
+  float lat_wire;
+  if(gran == CELL) lat_wire = 0;
+  else if(gran == ROW) lat_wire = 0;
+  else if (gran == COL) lat_wire = 0;
+  else lat_decoder = 0;
+
+  totalLat = lat_TIA + lat_decoder + lat_wire;
+
+  return totalLat;
 }
 
 //Calculate total cell full and half select energy for a request
