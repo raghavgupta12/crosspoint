@@ -4,6 +4,11 @@
 #include <math.h>
 #include <stdio.h>
 #include <cstring>
+#include <cassert>
+#include <string>
+#include <vector>
+#include <map>
+#include <fstream>
 
 using namespace std;
 
@@ -57,7 +62,8 @@ using namespace std;
           
 
 enum requestType   {READ, WRITE, NOT, OR};
-enum granSel  {ROW, COL, CELL, ELEMENT};
+enum requestGranularity  {ROW, COL, CELL, ELEMENT};
+enum topology {BITWISE, ROWWISE, ROWCOL};
 
 const string requestString[] = {"READ", "WRITE", "NOT", "OR"};
 
@@ -80,7 +86,7 @@ class stats{
   
   void init_values(void);
   void update_stats(float, float, float);
-  void update_sel_count(int, requestType, granSel, int, int, float, float, float, float, bool);
+  void update_sel_count(int, requestType, requestGranularity, int, int, float, float, float, float);
   void print_stats(void);
   void print_csv(void);
 }; 
@@ -115,30 +121,42 @@ class RRAMspec {
 
  public: 
   int numBanks, numRows, numCols;
-  int par;
-  float rdPwr, rdLat, rdHalfSel;
-  float wrPwr, wrSetPwr, wrLat, wrHalfSel;
+  int numParArr;
+  float readEnergy, readLat, readHalfSel;
+  float writeEnergy, wrSetPwr, writeLat, writeHalfSel;
   float notPwr, notLat, notHalfSel;
   float orPwr, orLat, orHalfSel;
-  bool DRAM;
+  float TIAEnergy, TIALat, decoderEnergy, decoderLat;
+  topology top;
 
   const char* traceFilename;
+  const char* config;
 
  public:
   void set_defaults                (void);
   void set_values                  (void);
   void free_memory                 (void);
   
-  int service_readwrite_request (requestType, granSel, int,  int, int, unsigned int write_data[DATA_SIZE]);
+  int service_readwrite_request (requestType, requestGranularity, int,  int, int, unsigned int write_data[DATA_SIZE]);
   /*                             requestType, bank, row, col, data */
   
-  int service_or_request        (requestType, granSel, int,  int,    int,    int,    int );
+  int service_or_request        (requestType, requestGranularity, int,  int,    int,    int,    int );
   /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */  
 
-  int service_not_request       (requestType, granSel, int,  int,    int,    int,    int);
+  int service_not_request       (requestType, requestGranularity, int,  int,    int,    int,    int);
   /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */
 
-  
+  float calculate_peripheral_energy(requestType, requestGranularity);
+
+  float calculate_peripheral_latency(requestType, requestGranularity);
+
+  float calculate_select_energy(requestType, requestGranularity);
+
+  float calculate_request_energy(requestType, requestGranularity);
+
+  float calculate_request_latency(requestType, requestGranularity);
+
+
   void show_stats               (void);
 
   void show_csv                (void);
@@ -146,10 +164,10 @@ class RRAMspec {
   int verify_readwrite_request  (requestType, int,  int, int);
   /*                             requestType, bank, row, col*/
 
-  int verify_or_request         (requestType, granSel, int,  int,    int,    int,    int);
+  int verify_or_request         (requestType, requestGranularity, int,  int,    int,    int,    int);
   /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */
 
-  int verify_not_request        (requestType, granSel, int,  int,    int,    int,    int);
+  int verify_not_request        (requestType, requestGranularity, int,  int,    int,    int,    int);
   /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */
 
   int parse();

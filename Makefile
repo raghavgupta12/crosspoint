@@ -1,8 +1,8 @@
 OBJS = crosspoint.cpp helper.cpp crosspoint.h helper.h
 CC = g++
 DEBUG = -g
-CFLAGS = -Wall -c $(DEBUG)
-LFLAGS = -Wall $(DEBUG)
+CFLAGS = -Wall -c $(DEBUG) 
+LFLAGS = -Wall -std=c++11 $(DEBUG)
 
 
 make: $(OBJS)
