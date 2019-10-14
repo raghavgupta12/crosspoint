@@ -22,33 +22,14 @@ using namespace std;
 #define WHITE    "\033[1m\033[37m"
 #define DARKBLUE "\033[1m\033[40m"
 
+/****************/
+//#define DEBUG 
+/****************/
 
 //Default values
-
-//#define DEBUG 
-
 #define DATA_SIZE        16
 
-#define NUM_BANKS        3
-#define NUM_ROWS         256
-#define NUM_COLS         256
-
-#define RD_PWR           25
-#define RD_LAT           5
-#define RD_ROW_LAT       5
-#define RD_COL_LAT       5
-#define RD_HALF_SEL_PWR  0.25
-#define RD_ROW_PWR       200
-#define RD_COL_PWR       200
-
-#define WR_PWR           100
 #define WR_SET_BIT_PWR   0.001
-#define WR_LAT           5
-#define WR_ROW_LAT       5
-#define WR_COL_LAT       5
-#define WR_HALF_SEL_PWR  1
-#define WR_ROW_PWR       600
-#define WR_COL_PWR       600
 
 #define NOT_PWR          2
 #define NOT_LAT          5
@@ -57,8 +38,6 @@ using namespace std;
 #define OR_PWR           4
 #define OR_LAT           5
 #define OR_HALF_SEL_PWR  0.2
-
-#define FILENAME     "trace.bin"
           
 
 enum requestType   {READ, WRITE, NOT, OR};
@@ -71,16 +50,31 @@ const string requestString[] = {"READ", "WRITE", "NOT", "OR"};
         
 class stats{
  public:
-
+  //overall energy statistics
   float total_energy;
   float average_energy;
   float average_power;
+
+  //overall latency statistics
   float total_latency;
   float average_latency;
+
+  //cell select energy
   float halfsel_energy;
   float fullsel_energy;
 
-  float count;
+  //peripheral energy
+  float TIA_energy;
+  float wire_energy;
+  float decoder_energy;
+
+  //peripheral latency
+  float TIA_latency;
+  float wire_latency;
+  float decoder_latency;
+
+  //counters
+  float requestCount;
   float halfSelCount;
   float fullSelCount;
   
@@ -170,7 +164,7 @@ class RRAMspec {
   int verify_not_request        (requestType, requestGranularity, int,  int,    int,    int,    int);
   /*                             requestType, sel,          bank, rowOne, colOne, rowTwo, colTwo */
 
-  int parse();
+  int parse_trace();
 
 };
 
